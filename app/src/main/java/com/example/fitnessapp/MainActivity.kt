@@ -20,14 +20,18 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.outlined.FitnessCenter
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -167,7 +171,7 @@ fun Workout(
             ) {
                 ElevatedButton(onClick = onAddExercise) {
                     Icon(imageVector = Icons.Default.Add, contentDescription = "Add Exercise")
-                    Text("Add Exercise", modifier = Modifier.padding(start = 8.dp))
+                    Text("Add Exercise", modifier = Modifier.padding(start = 8.dp)) // TODO: make this a resource
                 }
 
                 ElevatedButton(
@@ -175,14 +179,12 @@ fun Workout(
                     enabled = exercises.isNotEmpty()
                 ) {
                     Icon(imageVector = Icons.Default.Close, contentDescription = "Remove Exercise")
-                    Text("Remove Exercise", modifier = Modifier.padding(start = 8.dp))
+                    Text("Remove Exercise", modifier = Modifier.padding(start = 8.dp)) // TODO: make this a resource
                 }
             }
         }
     }
 }
-
-
 
 @Composable
 fun Exercise(
@@ -219,6 +221,17 @@ fun Exercise(
                 onUnitSelected = { selectedWeightUnit = it },
                 modifier = Modifier.weight(4f)
             )
+            FilledIconButton(
+                onClick = {
+                    // TODO: Navigate to subpage or show info dialog
+                },
+                modifier = Modifier.weight(2f)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.BarChart,
+                    contentDescription = "Exercise Stats"
+                )
+            }
         }
         sets.forEachIndexed { index, (kg, reps) ->
             SetRow(
