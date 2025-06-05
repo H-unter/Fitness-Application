@@ -197,84 +197,92 @@ fun Exercise(
     modifier: Modifier = Modifier
 ) {
     var selectedWeightUnit by remember { mutableStateOf("Kg") }
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
+    Surface(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp)
+            .padding(8.dp),
+        shape = RoundedCornerShape(12.dp),
+        shadowElevation = 4.dp,
+        color = MaterialTheme.colorScheme.surface
     ) {
-        Row(
-            modifier = Modifier
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .padding(vertical = 8.dp)
         ) {
-            Text(
-                text = name,
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.weight(10f)
-            )
-
-            UnitSelectorDropdown(
-                selectedUnit = selectedWeightUnit,
-                onUnitSelected = { selectedWeightUnit = it },
-                modifier = Modifier.weight(4f)
-            )
-            FilledIconButton(
-                onClick = {
-                    // TODO: Navigate to subpage or show info dialog
-                },
-                modifier = Modifier.weight(2f)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.BarChart,
-                    contentDescription = "Exercise Stats"
-                )
-            }
-        }
-        sets.forEachIndexed { index, (kg, reps) ->
-            SetRow(
-                setIndex = index + 1,
-                weight = kg,
-                reps = reps,
-                weightUnits = selectedWeightUnit,
-                onWeightChange = { newKg -> onWeightChange(index, newKg) },
-                onRepsChange = { newReps -> onRepsChange(index, newReps) },
-                onWeightUnitsChange = { selectedWeightUnit = it }
-            )
-        }
-
-        Row {
-            ElevatedButton(
-                onClick = onAddSet,
+            Row(
                 modifier = Modifier
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Icon(imageVector = Icons.Default.Add, contentDescription = "Add Set")
                 Text(
-                    text = "Add Set", // TODO: make this into a resource
-                    modifier = Modifier.padding(start = 8.dp)
+                    text = name,
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.weight(10f)
+                )
 
+                UnitSelectorDropdown(
+                    selectedUnit = selectedWeightUnit,
+                    onUnitSelected = { selectedWeightUnit = it },
+                    modifier = Modifier.weight(4f)
+                )
+                FilledIconButton(
+                    onClick = {
+                        // TODO: Navigate to subpage or show info dialog
+                    },
+                    modifier = Modifier.weight(2f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.BarChart,
+                        contentDescription = "Exercise Stats"
+                    )
+                }
+            }
+            sets.forEachIndexed { index, (kg, reps) ->
+                SetRow(
+                    setIndex = index + 1,
+                    weight = kg,
+                    reps = reps,
+                    weightUnits = selectedWeightUnit,
+                    onWeightChange = { newKg -> onWeightChange(index, newKg) },
+                    onRepsChange = { newReps -> onRepsChange(index, newReps) },
+                    onWeightUnitsChange = { selectedWeightUnit = it }
                 )
             }
-            ElevatedButton(
-                onClick = onRemoveSet,
-                modifier = Modifier
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                Icon(imageVector = Icons.Default.Close, contentDescription = "Add Set")
-                Text(
-                    text = "Remove Set", // TODO: make this into a resource
-                    modifier = Modifier.padding(start = 8.dp)
 
-                )
+            Row {
+                ElevatedButton(
+                    onClick = onAddSet,
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.Add, contentDescription = "Add Set")
+                    Text(
+                        text = "Add Set", // TODO: make this into a resource
+                        modifier = Modifier.padding(start = 8.dp)
+
+                    )
+                }
+                ElevatedButton(
+                    onClick = onRemoveSet,
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.Close, contentDescription = "Add Set")
+                    Text(
+                        text = "Remove Set", // TODO: make this into a resource
+                        modifier = Modifier.padding(start = 8.dp)
+
+                    )
+                }
             }
+
         }
-
     }
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UnitSelectorDropdown(
