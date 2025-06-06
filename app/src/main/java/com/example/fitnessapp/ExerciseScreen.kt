@@ -18,6 +18,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -28,6 +30,14 @@ import com.example.fitnessapp.meterialcomponents.PacktFloatingActionButton
 import com.example.fitnessapp.meterialcomponents.PacktSmallTopAppBar
 import com.example.fitnessapp.ui.theme.FitnessappTheme
 
+
+import com.patrykandpatrick.vico.multiplatform.cartesian.CartesianChartHost
+import com.patrykandpatrick.vico.multiplatform.cartesian.axis.HorizontalAxis
+import com.patrykandpatrick.vico.multiplatform.cartesian.axis.VerticalAxis
+import com.patrykandpatrick.vico.multiplatform.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.multiplatform.cartesian.data.lineSeries
+import com.patrykandpatrick.vico.multiplatform.cartesian.layer.rememberLineCartesianLayer
+import com.patrykandpatrick.vico.multiplatform.cartesian.rememberCartesianChart
 
 class SecondaryActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -96,14 +106,31 @@ fun ExerciseHistoryPlot(modifier: Modifier = Modifier) {
         tonalElevation = 2.dp,
         color = MaterialTheme.colorScheme.surfaceContainer
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            Text(
-                text = "Graph Placeholder",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        ComposeMultiplatformBasicLineChart()
+    }
+}
+
+
+
+@Composable
+fun ComposeMultiplatformBasicLineChart(modifier: Modifier = Modifier) {
+    val modelProducer = remember { CartesianChartModelProducer() }
+    LaunchedEffect(Unit) {
+        modelProducer.runTransaction {
+            // Learn more: https://patrykandpatrick.com/z5ah6v.
+            lineSeries { series(13, 8, 7, 12, 0, 1, 15, 14, 0, 11, 6, 12, 0, 11, 12, 11) }
         }
     }
+    CartesianChartHost(
+        chart =
+            rememberCartesianChart(
+                rememberLineCartesianLayer(),
+                startAxis = VerticalAxis.rememberStart(),
+                bottomAxis = HorizontalAxis.rememberBottom(),
+            ),
+        modelProducer = modelProducer,
+        modifier = modifier,
+    )
 }
 
 @Composable

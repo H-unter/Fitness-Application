@@ -58,6 +58,10 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation("androidx.compose.ui:ui-text-google-fonts:1.8.2")
     implementation("androidx.compose.material:material-icons-extended:<latest-version>")
-
+    implementation(libs.vico.compose)
+    implementation(libs.vico.compose.m2)
+    implementation(libs.vico.compose.m3)
+    implementation(libs.vico.multiplatform)
+    implementation(libs.vico.views)
 //    implementation("androidx.compose.material3:material3:1.13.0-alpha14")
 }
