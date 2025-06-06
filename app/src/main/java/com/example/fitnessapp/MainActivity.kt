@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.outlined.FitnessCenter
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -33,6 +34,7 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -52,6 +54,8 @@ import com.example.fitnessapp.meterialcomponents.PacktBottomNavigationBar
 import com.example.fitnessapp.meterialcomponents.PacktFloatingActionButton
 import com.example.fitnessapp.meterialcomponents.PacktSmallTopAppBar
 import com.example.fitnessapp.ui.theme.FitnessappTheme
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -86,9 +90,8 @@ fun MainScreen(modifier: Modifier = Modifier) {
     }
 
     Scaffold(
-        topBar = { PacktSmallTopAppBar() },
+        topBar = { WorkoutTopAppBar() },
         bottomBar = { PacktBottomNavigationBar() },
-        floatingActionButton = { PacktFloatingActionButton() },
         content = { paddingValues ->
             Workout(
                 exercises = exerciseList,
@@ -283,6 +286,97 @@ fun Exercise(
         }
     }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WorkoutTopAppBar() {
+    var expanded by remember { mutableStateOf(false) }
+    var selectedGym by remember { mutableStateOf("Gym 1") }
+    val gymOptions = listOf("Gym 1", "Gym 2", "Gym 3", "Gym 4")
+
+    MediumTopAppBar(
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            titleContentColor = MaterialTheme.colorScheme.primary,
+        ),
+        title = {Text(
+            text = "Monday Workout",
+            style = MaterialTheme.typography.headlineMedium
+        )},
+        actions = {
+            Box(
+                modifier = Modifier
+                    .padding(end = 12.dp)
+            ) {
+                Button(
+                    onClick = { expanded = true },
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(text = selectedGym)
+                    Icon(
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = "Select Gym"
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    gymOptions.forEach { gym ->
+                        DropdownMenuItem(
+                            text = { Text(gym) },
+                            onClick = {
+                                selectedGym = gym
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun GymSelectorDropdown(
+    selectedGym: String,
+    onGymSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val gymOptions = listOf("Main Gym", "Downtown Gym", "Campus Gym", "Home Gym")
+
+    Box(modifier = modifier) {
+        Button(
+            onClick = { expanded = true },
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+        ) {
+            Text(text = selectedGym)
+            Icon(
+                imageVector = Icons.Default.ArrowDropDown,
+                contentDescription = "Select Gym Location"
+            )
+        }
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            gymOptions.forEach { gym ->
+                DropdownMenuItem(
+                    text = { Text(gym) },
+                    onClick = {
+                        onGymSelected(gym)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UnitSelectorDropdown(

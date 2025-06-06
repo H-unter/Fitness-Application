@@ -2,6 +2,7 @@ package com.example.fitnessapp.meterialcomponents
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.ShoppingCart
@@ -25,25 +26,12 @@ fun PacktBottomNavigationBar() {
                 selected = false, onClick = { /*TODO*/ },
                 icon = {
                     Icon(
-                        imageVector = Icons.Rounded.Home,
+                        imageVector = Icons.Default.BarChart,
                         contentDescription = "Home Screen"
                     )
                 },
                 label = {
-                    Text(text = "Home")
-                }
-            )
-
-            NavigationBarItem(
-                selected = false, onClick = { /*TODO*/ },
-                icon = {
-                    Icon(
-                        imageVector = Icons.Rounded.ShoppingCart,
-                        contentDescription = "Cart Screen"
-                    )
-                },
-                label = {
-                    Text(text = "Cart")
+                    Text(text = "History")
                 }
             )
 

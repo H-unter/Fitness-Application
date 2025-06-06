@@ -1,10 +1,11 @@
 package com.example.fitnessapp
+
+
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,24 +21,28 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.ColorUtils
+
 import com.example.fitnessapp.meterialcomponents.PacktBottomNavigationBar
 import com.example.fitnessapp.meterialcomponents.PacktFloatingActionButton
 import com.example.fitnessapp.meterialcomponents.PacktSmallTopAppBar
 import com.example.fitnessapp.ui.theme.FitnessappTheme
+import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
+import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
+import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
+import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
+import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
+import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
+import com.patrykandpatrick.vico.core.common.Fill
+import com.patrykandpatrick.vico.core.common.shader.ShaderProvider
 
-
-import com.patrykandpatrick.vico.multiplatform.cartesian.CartesianChartHost
-import com.patrykandpatrick.vico.multiplatform.cartesian.axis.HorizontalAxis
-import com.patrykandpatrick.vico.multiplatform.cartesian.axis.VerticalAxis
-import com.patrykandpatrick.vico.multiplatform.cartesian.data.CartesianChartModelProducer
-import com.patrykandpatrick.vico.multiplatform.cartesian.data.lineSeries
-import com.patrykandpatrick.vico.multiplatform.cartesian.layer.rememberLineCartesianLayer
-import com.patrykandpatrick.vico.multiplatform.cartesian.rememberCartesianChart
 
 class SecondaryActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,9 +74,7 @@ fun ExerciseStatsScreenPreview() {
 @Composable
 fun ExerciseStatsScreen(modifier: Modifier = Modifier) {
     Scaffold(
-        topBar = { PacktSmallTopAppBar() },
         bottomBar = { PacktBottomNavigationBar() },
-        floatingActionButton = { PacktFloatingActionButton() },
         content = { paddingValues ->
             Column(
                 modifier = modifier
@@ -97,7 +100,6 @@ fun ExerciseStatsScreen(modifier: Modifier = Modifier) {
     )
 }
 
-
 @Composable
 fun ExerciseHistoryPlot(modifier: Modifier = Modifier) {
     Surface(
@@ -110,24 +112,38 @@ fun ExerciseHistoryPlot(modifier: Modifier = Modifier) {
     }
 }
 
-
-
 @Composable
 fun ComposeMultiplatformBasicLineChart(modifier: Modifier = Modifier) {
     val modelProducer = remember { CartesianChartModelProducer() }
+
+    val lineColor = 0
+//    val lineProvider = LineCartesianLayer.LineProvider.series(
+//        LineCartesianLayer.Line(
+//            fill = LineCartesianLayer.LineFill.single(Fill(lineColor)),
+//            areaFill =
+//                LineCartesianLayer.AreaFill.single(
+//                    Fill(
+//                        ShaderProvider.verticalGradient(
+//                            ColorUtils.setAlphaComponent(lineColor, 102),
+//                            android.graphics.Color.TRANSPARENT,
+//                        )
+//                    )
+//                ),
+//        )
+//    )
+
     LaunchedEffect(Unit) {
         modelProducer.runTransaction {
-            // Learn more: https://patrykandpatrick.com/z5ah6v.
-            lineSeries { series(13, 8, 7, 12, 0, 1, 15, 14, 0, 11, 6, 12, 0, 11, 12, 11) }
+            lineSeries {
+                series(13, 8, 7, 12, 0, 1, 15, 14, 0, 11, 6, 12, 0, 11, 12, 11)
+            }
         }
     }
     CartesianChartHost(
-        chart =
-            rememberCartesianChart(
-                rememberLineCartesianLayer(),
-                startAxis = VerticalAxis.rememberStart(),
-                bottomAxis = HorizontalAxis.rememberBottom(),
-            ),
+        chart = rememberCartesianChart(
+            startAxis = VerticalAxis.rememberStart(),
+            bottomAxis = HorizontalAxis.rememberBottom(),
+        ),
         modelProducer = modelProducer,
         modifier = modifier,
     )
