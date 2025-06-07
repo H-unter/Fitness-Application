@@ -22,8 +22,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.outlined.FitnessCenter
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -32,13 +30,13 @@ import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -51,11 +49,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.fitnessapp.meterialcomponents.PacktBottomNavigationBar
-import com.example.fitnessapp.meterialcomponents.PacktFloatingActionButton
-import com.example.fitnessapp.meterialcomponents.PacktSmallTopAppBar
 import com.example.fitnessapp.ui.theme.FitnessappTheme
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -72,7 +66,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-@Preview
+@Preview(
+//    name = "Dark Mode Preview",
+//    uiMode = Configuration.UI_MODE_NIGHT_YES,
+//    showBackground = true
+)
 @Composable
 fun MainScreenPreview() {
     FitnessappTheme {
@@ -251,8 +249,7 @@ fun Exercise(
                     reps = reps,
                     weightUnits = selectedWeightUnit,
                     onWeightChange = { newKg -> onWeightChange(index, newKg) },
-                    onRepsChange = { newReps -> onRepsChange(index, newReps) },
-                    onWeightUnitsChange = { selectedWeightUnit = it }
+                    onRepsChange = { newReps -> onRepsChange(index, newReps) }
                 )
             }
 
@@ -340,45 +337,6 @@ fun WorkoutTopAppBar() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GymSelectorDropdown(
-    selectedGym: String,
-    onGymSelected: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val gymOptions = listOf("Main Gym", "Downtown Gym", "Campus Gym", "Home Gym")
-
-    Box(modifier = modifier) {
-        Button(
-            onClick = { expanded = true },
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-        ) {
-            Text(text = selectedGym)
-            Icon(
-                imageVector = Icons.Default.ArrowDropDown,
-                contentDescription = "Select Gym Location"
-            )
-        }
-
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            gymOptions.forEach { gym ->
-                DropdownMenuItem(
-                    text = { Text(gym) },
-                    onClick = {
-                        onGymSelected(gym)
-                        expanded = false
-                    }
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
 fun UnitSelectorDropdown(
     selectedUnit: String,
     onUnitSelected: (String) -> Unit,
@@ -424,7 +382,6 @@ fun SetRow(
     weightUnits: String,
     reps: String,
     onWeightChange: (String) -> Unit,
-    onWeightUnitsChange: (String) -> Unit,
     onRepsChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -464,7 +421,7 @@ fun SetRow(
                         contentDescription = "weight"
                     )
                 },
-                trailingElement = {Text("$weightUnits")}
+                trailingElement = {Text(weightUnits)}
             )
 
             SetTextField(
@@ -479,12 +436,13 @@ fun SetRow(
 
 @Composable
 fun SetTextField(
+    modifier: Modifier = Modifier,
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
     leadingIcon: @Composable (() -> Unit)? = null,
-    trailingElement: @Composable (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    trailingElement: @Composable (() -> Unit)? = null
+
 ) {
     OutlinedTextField(
         value = value,
