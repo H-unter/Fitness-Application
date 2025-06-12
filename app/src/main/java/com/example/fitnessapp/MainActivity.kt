@@ -48,7 +48,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.fitnessapp.meterialcomponents.PacktBottomNavigationBar
 import com.example.fitnessapp.ui.theme.FitnessappTheme
 
 class MainActivity : ComponentActivity() {
@@ -89,7 +88,7 @@ fun MainScreen(modifier: Modifier = Modifier) {
 
     Scaffold(
         topBar = { WorkoutTopAppBar() },
-        bottomBar = { PacktBottomNavigationBar() },
+        bottomBar = { BottomNavigationBar() },
         content = { paddingValues ->
             Workout(
                 exercises = exerciseList,
@@ -334,6 +333,7 @@ fun WorkoutTopAppBar() {
         }
     )
 }
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

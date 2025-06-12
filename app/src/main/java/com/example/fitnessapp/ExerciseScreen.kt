@@ -25,11 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.ColorUtils
-
-import com.example.fitnessapp.meterialcomponents.PacktBottomNavigationBar
-import com.example.fitnessapp.meterialcomponents.PacktFloatingActionButton
-import com.example.fitnessapp.meterialcomponents.PacktSmallTopAppBar
 import com.example.fitnessapp.ui.theme.FitnessappTheme
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
@@ -39,10 +34,6 @@ import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
-import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
-import com.patrykandpatrick.vico.core.common.Fill
-import com.patrykandpatrick.vico.core.common.shader.ShaderProvider
-
 
 class SecondaryActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -74,7 +65,7 @@ fun ExerciseStatsScreenPreview() {
 @Composable
 fun ExerciseStatsScreen(modifier: Modifier = Modifier) {
     Scaffold(
-        bottomBar = { PacktBottomNavigationBar() },
+        bottomBar = { BottomNavigationBar() },
         content = { paddingValues ->
             Column(
                 modifier = modifier
