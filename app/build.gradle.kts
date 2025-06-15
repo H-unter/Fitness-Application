@@ -59,5 +59,8 @@ dependencies {
     implementation(libs.androidx.ui.text.google.fonts)
     implementation(libs.androidx.material.icons.extended)
     implementation("com.patrykandpatrick.vico:compose-m3:2.1.3")
+    implementation(libs.koin.core)
+    implementation(libs.koin.android)
+    implementation(libs.koin.androidx.compose)
 //    implementation("androidx.compose.material3:material3:1.13.0-alpha14")
 }

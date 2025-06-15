@@ -1,13 +1,15 @@
 package com.example.fitnessapp.data
 
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.snapshots.SnapshotStateList
+
 data class Exercise(
     val id: Int,
-    val workoutId: Int, // infer gym from workout id
+    val workoutId: Int,
     val name: String,
-    val weightUnit: WeightUnit = WeightUnit.Kg,
-    val sets: List<ExerciseSet>
+    val weightUnit: WeightUnit,
+    val sets: SnapshotStateList<ExerciseSet> = mutableStateListOf()
 )
-
 enum class WeightUnit {
-    Kg, Lb
+    KG, LB
 }

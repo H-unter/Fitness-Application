@@ -49,6 +49,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.fitnessapp.ui.theme.FitnessappTheme
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.fitnessapp.viewmodel.CurrentWorkoutViewModel
+import org.koin.androidx.compose.koinViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -80,51 +83,23 @@ fun MainScreenPreview() {
 @Composable
 fun MainScreen(modifier: Modifier = Modifier) {
     // Mutable state for all exercises (each has a name and list of sets)
-    val exerciseList = remember {
-        mutableStateListOf(
-            "Exercise 1" to mutableStateListOf("0" to "0")
-        )
-    }
+    val viewModel: CurrentWorkoutViewModel = koinViewModel()
+    val exercises = viewModel.exerciseList
 
     Scaffold(
         topBar = { WorkoutTopAppBar() },
         bottomBar = { BottomNavigationBar() },
         content = { paddingValues ->
             Workout(
-                exercises = exerciseList,
-                onExerciseWeightChange = { exerciseIndex, setIndex, newWeight ->
-                    val oldSet = exerciseList[exerciseIndex].second[setIndex]
-                    exerciseList[exerciseIndex] = exerciseList[exerciseIndex].copy(
-                        second = exerciseList[exerciseIndex].second.also {
-                            it[setIndex] = oldSet.copy(first = newWeight)
-                        }
-                    )
+                exercises = exercises.map { exercise ->
+                    exercise.name to exercise.sets.map { it.weight to it.reps }
                 },
-                onExerciseRepsChange = { exerciseIndex, setIndex, newReps ->
-                    val oldSet = exerciseList[exerciseIndex].second[setIndex]
-                    exerciseList[exerciseIndex] = exerciseList[exerciseIndex].copy(
-                        second = exerciseList[exerciseIndex].second.also {
-                            it[setIndex] = oldSet.copy(second = newReps)
-                        }
-                    )
-                },
-                onAddSetToExercise = { exerciseIndex ->
-                    exerciseList[exerciseIndex].second.add("0" to "0")
-                },
-                onRemoveSetFromExercise = { exerciseIndex ->
-                    val sets = exerciseList[exerciseIndex].second
-                    if (sets.isNotEmpty()) {
-                        sets.removeAt(sets.lastIndex)
-                    }
-                },
-                onAddExercise = {
-                    exerciseList.add("Exercise ${exerciseList.size + 1}" to mutableStateListOf("0" to "0"))
-                },
-                onRemoveExercise = {
-                    if (exerciseList.isNotEmpty()) {
-                    exerciseList.removeAt(exerciseList.lastIndex)
-                    }
-                },
+                onExerciseWeightChange = viewModel::updateSetWeight,
+                onExerciseRepsChange = viewModel::updateSetReps,
+                onAddSetToExercise = viewModel::addSetToExercise,
+                onRemoveSetFromExercise = viewModel::removeSetFromExercise,
+                onAddExercise = viewModel::addExercise,
+                onRemoveExercise = viewModel::removeExercise,
                 modifier = modifier.padding(paddingValues)
             )
         }

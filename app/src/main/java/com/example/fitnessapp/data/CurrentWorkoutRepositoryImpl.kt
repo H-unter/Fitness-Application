@@ -1,6 +1,6 @@
 package com.example.fitnessapp.data
 
-class CurrentWorkoutRespositoryImpl : CurrentWorkoutRepository  {
+class CurrentWorkoutRepositoryImpl : CurrentWorkoutRepository  {
 
     private var currentWorkout: Workout? = null
 
