@@ -42,7 +42,7 @@ class CurrentWorkoutViewModel(
 
     fun removeSetFromExercise(exerciseIndex: Int) {
         val sets = _exerciseList[exerciseIndex].sets
-        if (sets.isNotEmpty()) sets.removeAt(sets.lastIndex)
+        if (sets.size > 1) sets.removeAt(sets.lastIndex)
     }
 
     fun updateSetWeight(exerciseIndex: Int, setIndex: Int, newWeight: String) {

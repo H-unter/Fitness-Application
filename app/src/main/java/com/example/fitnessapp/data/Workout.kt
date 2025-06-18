@@ -2,7 +2,8 @@ package com.example.fitnessapp.data
 
 data class Workout(
     val id: Int,
-    val gymId: Int,
-    val startTime: Long, // use Instant or LocalDateTime if you prefer
-    val exercises: List<Exercise>
+    val locationId: Int,
+    val startTime: Long,
+    val endTime: Long,
+    val exercises: List<Exercise> // list of the ExerciseSet class
 )

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -51,7 +52,6 @@ class SecondaryActivity : ComponentActivity() {
     }
 }
 
-
 @Preview
 @Composable
 fun ExerciseStatsScreenPreview() {
@@ -59,8 +59,6 @@ fun ExerciseStatsScreenPreview() {
         ExerciseStatsScreen(Modifier)
     }
 }
-
-
 
 @Composable
 fun ExerciseStatsScreen(modifier: Modifier = Modifier) {
@@ -99,45 +97,7 @@ fun ExerciseHistoryPlot(modifier: Modifier = Modifier) {
         tonalElevation = 2.dp,
         color = MaterialTheme.colorScheme.surfaceContainer
     ) {
-        ComposeMultiplatformBasicLineChart()
     }
-}
-
-@Composable
-fun ComposeMultiplatformBasicLineChart(modifier: Modifier = Modifier) {
-    val modelProducer = remember { CartesianChartModelProducer() }
-
-    val lineColor = 0
-//    val lineProvider = LineCartesianLayer.LineProvider.series(
-//        LineCartesianLayer.Line(
-//            fill = LineCartesianLayer.LineFill.single(Fill(lineColor)),
-//            areaFill =
-//                LineCartesianLayer.AreaFill.single(
-//                    Fill(
-//                        ShaderProvider.verticalGradient(
-//                            ColorUtils.setAlphaComponent(lineColor, 102),
-//                            android.graphics.Color.TRANSPARENT,
-//                        )
-//                    )
-//                ),
-//        )
-//    )
-
-    LaunchedEffect(Unit) {
-        modelProducer.runTransaction {
-            lineSeries {
-                series(13, 8, 7, 12, 0, 1, 15, 14, 0, 11, 6, 12, 0, 11, 12, 11)
-            }
-        }
-    }
-    CartesianChartHost(
-        chart = rememberCartesianChart(
-            startAxis = VerticalAxis.rememberStart(),
-            bottomAxis = HorizontalAxis.rememberBottom(),
-        ),
-        modelProducer = modelProducer,
-        modifier = modifier,
-    )
 }
 
 @Composable
@@ -169,7 +129,6 @@ fun ExerciseHistory(modifier: Modifier = Modifier) {
         Spacer(modifier = Modifier.height(80.dp)) // prevent FAB from overlapping last card
     }
 }
-
 
 
 @Composable
