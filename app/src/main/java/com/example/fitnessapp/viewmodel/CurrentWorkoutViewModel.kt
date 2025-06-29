@@ -41,14 +41,16 @@ class CurrentWorkoutViewModel(
     }
 
     fun removeSetFromExercise(exerciseIndex: Int) {
-        val sets = _exerciseList[exerciseIndex].sets
+        val sets = _exerciseList.getOrNull(exerciseIndex)?.sets ?: return
         if (sets.size > 1) sets.removeAt(sets.lastIndex)
     }
 
     fun updateSetWeight(exerciseIndex: Int, setIndex: Int, newWeight: String) {
-        val exercise = _exerciseList[exerciseIndex]
-        val updatedSet = exercise.sets[setIndex].copy(weight = newWeight)
-        exercise.sets[setIndex] = updatedSet
+        val sets = _exerciseList.getOrNull(exerciseIndex)?.sets ?: return
+        if (setIndex in sets.indices) {
+            val updatedSet = sets[setIndex].copy(weight = newWeight)
+            sets[setIndex] = updatedSet
+        }
     }
 
     fun updateSetReps(exerciseIndex: Int, setIndex: Int, newReps: String) {

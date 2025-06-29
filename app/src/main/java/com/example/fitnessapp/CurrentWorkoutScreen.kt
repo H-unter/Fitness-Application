@@ -1,5 +1,6 @@
 package com.example.fitnessapp
 
+import android.util.Log
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,7 +63,10 @@ fun CurrentWorkoutScreenPreview() {
 }
 
 @Composable
-fun CurrentWorkoutScreen(modifier: Modifier = Modifier) {
+fun CurrentWorkoutScreen(
+    onNavigateToStats: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
     // Mutable state for all exercises (each has a name and list of sets)
     val viewModel: CurrentWorkoutViewModel = koinViewModel()
     val exercises = viewModel.exerciseList
@@ -81,6 +85,7 @@ fun CurrentWorkoutScreen(modifier: Modifier = Modifier) {
                 onRemoveSetFromExercise = viewModel::removeSetFromExercise,
                 onAddExercise = viewModel::addExercise,
                 onRemoveExercise = viewModel::removeExercise,
+                onNavigateToStats = onNavigateToStats,
                 modifier = modifier.padding(paddingValues)
             )
         }
@@ -96,6 +101,7 @@ fun CurrentWorkout(
     onRemoveSetFromExercise: (exerciseIndex: Int) -> Unit,
     onAddExercise: () -> Unit,
     onRemoveExercise: () -> Unit,
+    onNavigateToStats: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -114,7 +120,8 @@ fun CurrentWorkout(
                     onExerciseRepsChange(exerciseIndex, setIndex, newReps)
                 },
                 onAddSet = { onAddSetToExercise(exerciseIndex) },
-                onRemoveSet = { onRemoveSetFromExercise(exerciseIndex) }
+                onRemoveSet = { onRemoveSetFromExercise(exerciseIndex)},
+                onNavigateToStats = {onNavigateToStats()}
             )
         }
 
@@ -150,6 +157,7 @@ fun Exercise(
     onRepsChange: (Int, String) -> Unit,
     onAddSet: () -> Unit,
     onRemoveSet: () -> Unit,
+    onNavigateToStats: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var selectedWeightUnit by remember { mutableStateOf("Kg") }
@@ -187,7 +195,8 @@ fun Exercise(
                 )
                 FilledIconButton(
                     onClick = {
-                        // TODO: Navigate to subpage or show info dialog
+                        Log.i("MY_MESSAGE", "Navigating to ExerciseStatsScreen")
+                        onNavigateToStats()
                     },
                     modifier = Modifier.weight(2f)
                 ) {

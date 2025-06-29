@@ -58,6 +58,7 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation(libs.androidx.ui.text.google.fonts)
     implementation(libs.androidx.material.icons.extended)
+    implementation(libs.compose.navigation)
     implementation("com.patrykandpatrick.vico:compose-m3:2.1.3")
     implementation(libs.koin.core)
     implementation(libs.koin.android)
