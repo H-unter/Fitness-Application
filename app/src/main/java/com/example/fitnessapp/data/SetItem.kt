@@ -1,6 +1,9 @@
 package com.example.fitnessapp.data
 
-data class ExerciseSet (
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class SetItem (
     val weight: String,
     val reps: String
 )

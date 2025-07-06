@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    id("kotlinx-serialization")
 }
 
 android {
@@ -59,11 +60,13 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation(libs.androidx.ui.text.google.fonts)
     implementation(libs.androidx.material.icons.extended)
+//    implementation(libs.bundles.networking)
     implementation(libs.compose.navigation)
     implementation("com.patrykandpatrick.vico:compose-m3:2.1.3")
     implementation(libs.koin.core)
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
+    implementation(libs.serialization.json)
 //    implementation("androidx.compose.material3:material3:1.13.0-alpha14")
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)

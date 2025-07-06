@@ -1,61 +1,80 @@
 package com.example.fitnessapp.viewmodel
 
-import androidx.compose.runtime.mutableStateListOf
+import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.fitnessapp.data.CurrentWorkoutRepository
-import com.example.fitnessapp.data.ExerciseSet
-import com.example.fitnessapp.data.Exercise
-import com.example.fitnessapp.data.Workout
+import com.example.fitnessapp.data.SetGroup
+import com.example.fitnessapp.data.SetItem
 import com.example.fitnessapp.data.WeightUnit
+import com.example.fitnessapp.data.Workout
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 class CurrentWorkoutViewModel(
-    private val workoutRepository: CurrentWorkoutRepository // Injected via Koin
+    private val workoutRepository: CurrentWorkoutRepository
 ) : ViewModel() {
 
-    private val _exerciseList = mutableStateListOf<Exercise>() // private version that cant be messed with from the outside
-    val exerciseList: List<Exercise> get() = _exerciseList
+    /** The current workout (or null if none started) */
+    val currentWorkout: StateFlow<Workout?> =
+        workoutRepository
+            .getCurrentWorkout()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    init {
-        addExercise()
+    /** The list of exercises (set-groups) in that workout */
+    val setGroups: StateFlow<List<SetGroup>> =
+        workoutRepository
+            .getSetGroups()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Kick off a brand-new workout; returns the new rowId under the hood */
+    fun startNewWorkout(gymId: Int = 0) = viewModelScope.launch {
+        workoutRepository.startNewWorkout(gymId)
     }
 
-    fun addExercise() { // TODO: implement a list of exercises and add a new exercise to the list
-        val newExercise = Exercise(
-            id = _exerciseList.size + 1,
-            workoutId = 0,
-            name = "Exercise ${_exerciseList.size + 1}",
+    /** Mark the current workout as finished */
+    fun finishCurrentWorkout() = viewModelScope.launch {
+        workoutRepository.finishCurrentWorkout()
+    }
+
+    /** Add a new exercise (set-group) to the workout */
+    fun addExercise() = viewModelScope.launch {
+        Log.i("CurrentWorkoutViewModel", "addExercise() — currentWorkout = ${currentWorkout.value}")
+        val workout = currentWorkout.value ?: return@launch
+        val newGroup = SetGroup(
+            id         = 0,
+            workoutId  = workout.id,
+            name       = "Exercise ${'$'}{setGroups.value.size + 1}",
             weightUnit = WeightUnit.KG,
-            sets = mutableStateListOf(ExerciseSet("0", "0"))
+            sets       = listOf( SetItem(weight = "0", reps = "0") )
         )
-        _exerciseList.add(newExercise)
+        workoutRepository.addExercise(newGroup)
     }
 
-    fun removeExercise() {
-        if (_exerciseList.isNotEmpty()) {
-            _exerciseList.removeAt(_exerciseList.lastIndex)
-        }
+    /** Remove an exercise (set-group) */
+    fun removeExercise(group: SetGroup) = viewModelScope.launch {
+        workoutRepository.removeExercise(group)
     }
 
-    fun addSetToExercise(exerciseIndex: Int) {
-        _exerciseList[exerciseIndex].sets.add(ExerciseSet("0", "0"))
+    /** Add a new set to a specific exercise */
+    fun addSetToExercise(exerciseIndex: Int) = viewModelScope.launch {
+        workoutRepository.addSetToExercise(exerciseIndex)
     }
 
-    fun removeSetFromExercise(exerciseIndex: Int) {
-        val sets = _exerciseList.getOrNull(exerciseIndex)?.sets ?: return
-        if (sets.size > 1) sets.removeAt(sets.lastIndex)
+    /** Remove a set from a specific exercise */
+    fun removeSetFromExercise(exerciseIndex: Int, setIndex: Int) = viewModelScope.launch {
+        workoutRepository.removeSetFromExercise(exerciseIndex, setIndex)
     }
 
-    fun updateSetWeight(exerciseIndex: Int, setIndex: Int, newWeight: String) {
-        val sets = _exerciseList.getOrNull(exerciseIndex)?.sets ?: return
-        if (setIndex in sets.indices) {
-            val updatedSet = sets[setIndex].copy(weight = newWeight)
-            sets[setIndex] = updatedSet
-        }
+    /** Update one set’s weight in a given exercise */
+    fun updateSetWeight(exerciseIndex: Int, setIndex: Int, newWeight: String) = viewModelScope.launch {
+        workoutRepository.updateSetWeight(exerciseIndex, setIndex, newWeight)
     }
 
-    fun updateSetReps(exerciseIndex: Int, setIndex: Int, newReps: String) {
-        val exercise = _exerciseList[exerciseIndex]
-        val updatedSet = exercise.sets[setIndex].copy(reps = newReps)
-        exercise.sets[setIndex] = updatedSet
+    /** Update one set’s reps in a given exercise */
+    fun updateSetReps(exerciseIndex: Int, setIndex: Int, newReps: String) = viewModelScope.launch {
+        workoutRepository.updateSetReps(exerciseIndex, setIndex, newReps)
     }
 }

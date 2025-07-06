@@ -36,6 +36,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,6 +48,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.fitnessapp.ui.theme.FitnessappTheme
 import com.example.fitnessapp.viewmodel.CurrentWorkoutViewModel
+import kotlinx.coroutines.flow.map
 import org.koin.androidx.compose.koinViewModel
 
 
@@ -67,30 +69,57 @@ fun CurrentWorkoutScreen(
     onNavigateToStats: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    // Mutable state for all exercises (each has a name and list of sets)
     val viewModel: CurrentWorkoutViewModel = koinViewModel()
-    val exercises = viewModel.exerciseList
+    val currentWorkout by viewModel.currentWorkout.collectAsState(initial = null)
+    val setGroups by viewModel.setGroups.collectAsState(initial = emptyList())
+
+    // if there is no active workout, prompt user to start one
+    if (currentWorkout == null) {
+        Box(
+            modifier = modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            ElevatedButton(onClick = { viewModel.startNewWorkout() }) {
+                Text(text = "Start Workout")
+            }
+        }
+        return
+    }
+
+    // if there is a workout in progress, display it
+    val exercises = setGroups.map { group ->
+        group.name to group.sets.map { it.weight to it.reps }
+    }
 
     Scaffold(
         topBar = { WorkoutTopAppBar() },
-        bottomBar = { BottomNavigationBar() },
-        content = { paddingValues ->
-            CurrentWorkout(
-                exercises = exercises.map { exercise ->
-                    exercise.name to exercise.sets.map { it.weight to it.reps }
-                },
-                onExerciseWeightChange = viewModel::updateSetWeight,
-                onExerciseRepsChange = viewModel::updateSetReps,
-                onAddSetToExercise = viewModel::addSetToExercise,
-                onRemoveSetFromExercise = viewModel::removeSetFromExercise,
-                onAddExercise = viewModel::addExercise,
-                onRemoveExercise = viewModel::removeExercise,
-                onNavigateToStats = onNavigateToStats,
-                modifier = modifier.padding(paddingValues)
-            )
-        }
-    )
+        bottomBar = { BottomNavigationBar() }
+    ) { paddingValues ->
+        CurrentWorkout(
+            exercises = exercises,
+            onExerciseWeightChange = viewModel::updateSetWeight,
+            onExerciseRepsChange = viewModel::updateSetReps,
+            onAddSetToExercise = viewModel::addSetToExercise,
+            onRemoveSetFromExercise = { exerciseIndex ->
+                // remove the last set in the group
+                exercises.getOrNull(exerciseIndex)?.let { (_, sets) ->
+                    if (sets.isNotEmpty()) {
+                        viewModel.removeSetFromExercise(exerciseIndex, sets.lastIndex)
+                    }
+                }
+            },
+            onAddExercise = viewModel::addExercise,
+            onRemoveExercise = {
+                setGroups.lastOrNull()?.let { group ->
+                    viewModel.removeExercise(group)
+                }
+            },
+            onNavigateToStats = onNavigateToStats,
+            modifier = modifier.padding(paddingValues)
+        )
+    }
 }
+
 
 @Composable
 fun CurrentWorkout(

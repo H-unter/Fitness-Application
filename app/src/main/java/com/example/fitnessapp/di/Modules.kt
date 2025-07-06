@@ -8,12 +8,13 @@ import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 import org.koin.android.ext.koin.androidContext
 import com.example.fitnessapp.data.GymActivityDatabase
-
-
+import com.example.fitnessapp.data.SetGroupDao
+import com.example.fitnessapp.data.WorkoutDao
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 
 val appModule = module {
-    single<CurrentWorkoutRepository> { CurrentWorkoutRepositoryImpl() }
-    viewModel { CurrentWorkoutViewModel(get()) }
     single {
         Room.databaseBuilder(
             androidContext(),
@@ -21,5 +22,26 @@ val appModule = module {
             "gym-activity-database"
         ).build()
     }
+    single<WorkoutDao> {
+        get<GymActivityDatabase>().workoutDao()
+    }
+    single<SetGroupDao> {
+        get<GymActivityDatabase>().setGroupDao()
+    }
+    single<CoroutineDispatcher> { Dispatchers.IO }
+    single<CoroutineScope> { CoroutineScope(get<CoroutineDispatcher>()) }
+
+
+    single<CurrentWorkoutRepository> {
+        CurrentWorkoutRepositoryImpl(
+            workoutDao   = get(),    // WorkoutDao
+            setGroupDao  = get(),    // SetGroupDao
+            dispatcher   = get(),
+            scope        = get()
+        )
+    }
+
+    viewModel { CurrentWorkoutViewModel(get()) }
 }
+
 

@@ -5,5 +5,5 @@ data class Workout(
     val locationId: Int,
     val startTime: Long,
     val endTime: Long,
-    val exercises: List<Exercise> // list of the ExerciseSet class
+    val setGroups: List<SetGroup> // list of the ExerciseSet class
 )
