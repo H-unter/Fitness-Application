@@ -1,0 +1,35 @@
+package com.example.fitnessapp.viewmodel
+
+import android.util.Log
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.fitnessapp.data.ExerciseRepository
+import com.example.fitnessapp.data.Exercise
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+
+class ExerciseListSelectionViewModel(
+    private val exerciseRepository: ExerciseRepository
+) : ViewModel() {
+
+    /** The list of all exercises available for selection */
+    val exercises: StateFlow<List<Exercise>> =
+        exerciseRepository
+            .getAllExercises()
+            .stateIn(
+                scope        = viewModelScope,
+                started      = SharingStarted.WhileSubscribed(5_000),
+                initialValue = emptyList()
+            )
+
+    /** Create a brand-new exercise with the given name */
+    fun createExercise(name: String) = viewModelScope.launch {
+        Log.i(
+            "ExerciseListSelectionViewModel",
+            "createExercise() — name = $name"
+        )
+        exerciseRepository.insertExercise(name)
+    }
+}

@@ -65,7 +65,7 @@ class CurrentWorkoutRepositoryImpl(
                                 SetGroup(
                                     id         = setGroupEntity.setGroupId,
                                     workoutId  = setGroupEntity.workoutId,
-                                    name       = "Exercise" /* TODO: implement some kind of enumeration, or perhaps something linked to its exercise id (future foreign key */,
+                                    name       = setGroupEntity.name,
                                     weightUnit = setGroupEntity.weightUnit,
                                     sets       = setGroupEntity.sets
                                 )
@@ -85,7 +85,7 @@ class CurrentWorkoutRepositoryImpl(
                             SetGroup(
                                 id         = setGroupEntity.setGroupId,
                                 workoutId  = setGroupEntity.workoutId,
-                                name       = "" /* TODO: implement some kind of enumeration, or perhaps something linked to its exercise id (future foreign key */,
+                                name       = setGroupEntity.name,
                                 weightUnit = setGroupEntity.weightUnit,
                                 sets       = setGroupEntity.sets
                             )
@@ -101,12 +101,15 @@ class CurrentWorkoutRepositoryImpl(
                     setGroupId = setGroup.id,
                     workoutId  = setGroup.workoutId,
                     exerciseId = 0,  /* TODO: implement some kind of enumeration, or perhaps something linked to its exercise id (future foreign key */
+                    name = setGroup.name,
                     weightUnit = setGroup.weightUnit,
                     sets       = setGroup.sets
                 )
             )
         }
     }
+
+
 
     override suspend fun removeExercise(setGroup: SetGroup) {
         withContext(dispatcher) {
@@ -132,6 +135,7 @@ class CurrentWorkoutRepositoryImpl(
                     setGroupId = targetGroup.setGroupId,
                     workoutId  = targetGroup.workoutId,
                     exerciseId = targetGroup.exerciseId,
+                    name = targetGroup.name,
                     weightUnit = targetGroup.weightUnit,
                     sets       = updatedSets
                 )
@@ -156,6 +160,7 @@ class CurrentWorkoutRepositoryImpl(
                     setGroupId = targetGroup.setGroupId,
                     workoutId  = targetGroup.workoutId,
                     exerciseId = targetGroup.exerciseId,
+                    name = targetGroup.name,
                     weightUnit = targetGroup.weightUnit,
                     sets       = updatedSets
                 )
@@ -186,6 +191,7 @@ class CurrentWorkoutRepositoryImpl(
                     setGroupId = targetGroup.setGroupId,
                     workoutId  = targetGroup.workoutId,
                     exerciseId = targetGroup.exerciseId,
+                    name = targetGroup.name,
                     weightUnit = targetGroup.weightUnit,
                     sets       = updatedSets
                 )
@@ -215,6 +221,7 @@ class CurrentWorkoutRepositoryImpl(
                     setGroupId = targetGroup.setGroupId,
                     workoutId  = targetGroup.workoutId,
                     exerciseId = targetGroup.exerciseId,
+                    name = targetGroup.name,
                     weightUnit = targetGroup.weightUnit,
                     sets       = updatedSets
                 )

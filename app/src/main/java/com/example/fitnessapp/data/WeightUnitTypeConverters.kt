@@ -4,7 +4,7 @@ import androidx.room.TypeConverter
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-class WeightUnitConverters {
+class WeightUnitTypeConverters {
     @TypeConverter
     fun convertWeightUnitToString(weightUnit: WeightUnit): String {
         return Json.encodeToString(weightUnit)

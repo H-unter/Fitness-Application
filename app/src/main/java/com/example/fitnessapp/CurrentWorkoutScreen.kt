@@ -60,13 +60,17 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun CurrentWorkoutScreenPreview() {
     FitnessappTheme {
-        CurrentWorkoutScreen()
+        CurrentWorkoutScreen(
+            onAddExercise = {},
+            onNavigateToStats = {}
+        )
     }
 }
 
 @Composable
 fun CurrentWorkoutScreen(
     onNavigateToStats: () -> Unit = {},
+    onAddExercise:    () -> Unit       = {},
     modifier: Modifier = Modifier
 ) {
     val viewModel: CurrentWorkoutViewModel = koinViewModel()
@@ -108,7 +112,7 @@ fun CurrentWorkoutScreen(
                     }
                 }
             },
-            onAddExercise = viewModel::addExercise,
+            onAddExercise = onAddExercise,
             onRemoveExercise = {
                 setGroups.lastOrNull()?.let { group ->
                     viewModel.removeExercise(group)
@@ -212,7 +216,7 @@ fun Exercise(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = name,
+                    text = "$name",
                     style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.weight(10f)
                 )

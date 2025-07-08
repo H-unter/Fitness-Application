@@ -8,6 +8,7 @@ data class SetGroupEntity(
     @PrimaryKey(autoGenerate = true) val setGroupId: Int,
     val workoutId: Int,
     val exerciseId: Int,
+    val name: String, // takes on the name of the exercise
     val weightUnit: WeightUnit,
     val sets: List<SetItem>
 )

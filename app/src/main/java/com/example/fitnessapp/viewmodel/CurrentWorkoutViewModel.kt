@@ -4,6 +4,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.fitnessapp.data.CurrentWorkoutRepository
+import com.example.fitnessapp.data.Exercise
+import com.example.fitnessapp.data.ExerciseRepository
 import com.example.fitnessapp.data.SetGroup
 import com.example.fitnessapp.data.SetItem
 import com.example.fitnessapp.data.WeightUnit
@@ -14,7 +16,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class CurrentWorkoutViewModel(
-    private val workoutRepository: CurrentWorkoutRepository
+    private val workoutRepository: CurrentWorkoutRepository,
+    private val exerciseRepository: ExerciseRepository
 ) : ViewModel() {
 
     /** The current workout (or null if none started) */
@@ -39,18 +42,20 @@ class CurrentWorkoutViewModel(
         workoutRepository.finishCurrentWorkout()
     }
 
-    /** Add a new exercise (set-group) to the workout */
-    fun addExercise() = viewModelScope.launch {
-        Log.i("CurrentWorkoutViewModel", "addExercise() — currentWorkout = ${currentWorkout.value}")
+
+    /* Add an exercise (set-group) by its ID */
+    fun addExerciseById(exerciseId: Long) = viewModelScope.launch {
+        val picked = exerciseRepository.getExerciseById(exerciseId) ?: return@launch
+        Log.d("CurrentWorkoutViewModel", "picked = $picked, exerciseId = $exerciseId, name = ${picked.name}")
         val workout = currentWorkout.value ?: return@launch
-        val newGroup = SetGroup(
+        val newSetGroup = SetGroup(
             id         = 0,
             workoutId  = workout.id,
-            name       = "Exercise ${'$'}{setGroups.value.size + 1}",
+            name       = picked.name,
             weightUnit = WeightUnit.KG,
-            sets       = listOf( SetItem(weight = "0", reps = "0") )
+            sets       = listOf(SetItem(weight = "0", reps = "0"))
         )
-        workoutRepository.addExercise(newGroup)
+        workoutRepository.addExercise(newSetGroup)
     }
 
     /** Remove an exercise (set-group) */
