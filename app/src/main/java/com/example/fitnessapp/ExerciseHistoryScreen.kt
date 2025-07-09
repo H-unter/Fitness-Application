@@ -1,10 +1,6 @@
 package com.example.fitnessapp
 
 
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,14 +23,14 @@ import com.example.fitnessapp.ui.theme.FitnessappTheme
 
 @Preview
 @Composable
-fun ExerciseStatsScreenPreview() {
+fun ExerciseHistoryScreenPreview() {
     FitnessappTheme {
-        ExerciseStatsScreen(Modifier)
+        ExerciseHistoryScreen(Modifier)
     }
 }
 
 @Composable
-fun ExerciseStatsScreen(modifier: Modifier = Modifier) {
+fun ExerciseHistoryScreen(modifier: Modifier = Modifier) {
     Scaffold(
         bottomBar = { BottomNavigationBar() },
         content = { paddingValues ->
@@ -50,9 +46,8 @@ fun ExerciseStatsScreen(modifier: Modifier = Modifier) {
                         .fillMaxWidth()
                         .height(200.dp) // Temporary height for the graph placeholder
                 )
-
                 Text(
-                    text = "Bench Press History",
+                    text = "Exercise History",
                     style = MaterialTheme.typography.headlineSmall
                 )
 

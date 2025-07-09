@@ -1,14 +1,12 @@
 package com.example.fitnessapp.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.fitnessapp.CurrentWorkoutScreen
 import com.example.fitnessapp.ExerciseListSelectionScreen
-import com.example.fitnessapp.ExerciseStatsScreen
-import com.example.fitnessapp.data.Exercise
+import com.example.fitnessapp.ExerciseHistoryScreen
 import com.example.fitnessapp.viewmodel.CurrentWorkoutViewModel
 import org.koin.androidx.compose.koinViewModel
 
@@ -48,7 +46,7 @@ fun AppNavigation() {
 
         // 2) Stats screen
         composable(Screens.ExerciseStatsScreen.route) {
-            ExerciseStatsScreen()
+            ExerciseHistoryScreen()
         }
 
         // 3) Exercise picker screen
