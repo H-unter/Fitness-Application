@@ -1,5 +1,6 @@
 package com.example.fitnessapp
 
+import android.content.res.Configuration
 import android.util.Log
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -52,25 +53,10 @@ import kotlinx.coroutines.flow.map
 import org.koin.androidx.compose.koinViewModel
 
 
-@Preview(
-//    name = "Dark Mode Preview",
-//    uiMode = Configuration.UI_MODE_NIGHT_YES,
-//    showBackground = true
-)
-@Composable
-fun CurrentWorkoutScreenPreview() {
-    FitnessappTheme {
-        CurrentWorkoutScreen(
-            onAddExercise = {},
-            onNavigateToStats = {}
-        )
-    }
-}
-
 @Composable
 fun CurrentWorkoutScreen(
     onNavigateToStats: () -> Unit = {},
-    onAddExercise:    () -> Unit       = {},
+    onAddExercise:    () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val viewModel: CurrentWorkoutViewModel = koinViewModel()
@@ -90,40 +76,59 @@ fun CurrentWorkoutScreen(
         return
     }
 
-    // if there is a workout in progress, display it
+    // map domain SetGroup to UI exercise list
     val exercises = setGroups.map { group ->
         group.name to group.sets.map { it.weight to it.reps }
     }
 
+    CurrentWorkoutScreenContent(
+        exercises = exercises,
+        onExerciseWeightChange  = viewModel::updateSetWeight,
+        onExerciseRepsChange    = viewModel::updateSetReps,
+        onAddSetToExercise      = viewModel::addSetToExercise,
+        onRemoveSetFromExercise = { index ->
+            exercises.getOrNull(index)?.let { (_, sets) ->
+                if (sets.isNotEmpty()) {
+                    viewModel.removeSetFromExercise(index, sets.lastIndex)
+                }
+            }
+        },
+        onAddExercise           = onAddExercise,
+        onRemoveExercise        = { setGroups.lastOrNull()?.let { viewModel.removeExercise(it) } },
+        onNavigateToStats       = onNavigateToStats,
+        modifier                = modifier
+    )
+}
+
+@Composable
+fun CurrentWorkoutScreenContent(
+    exercises: List<Pair<String, List<Pair<String, String>>>>,
+    onExerciseWeightChange:     (exerciseIndex: Int, setIndex: Int, newWeight: String) -> Unit,
+    onExerciseRepsChange:       (exerciseIndex: Int, setIndex: Int, newReps: String) -> Unit,
+    onAddSetToExercise:         (exerciseIndex: Int) -> Unit,
+    onRemoveSetFromExercise:    (exerciseIndex: Int) -> Unit,
+    onAddExercise:              () -> Unit,
+    onRemoveExercise:           () -> Unit,
+    onNavigateToStats:          () -> Unit,
+    modifier:                   Modifier = Modifier
+) {
     Scaffold(
-        topBar = { WorkoutTopAppBar() },
+        topBar    = { WorkoutTopAppBar() },
         bottomBar = { BottomNavigationBar() }
-    ) { paddingValues ->
+    ) { paddingValues: PaddingValues ->
         CurrentWorkout(
-            exercises = exercises,
-            onExerciseWeightChange = viewModel::updateSetWeight,
-            onExerciseRepsChange = viewModel::updateSetReps,
-            onAddSetToExercise = viewModel::addSetToExercise,
-            onRemoveSetFromExercise = { exerciseIndex ->
-                // remove the last set in the group
-                exercises.getOrNull(exerciseIndex)?.let { (_, sets) ->
-                    if (sets.isNotEmpty()) {
-                        viewModel.removeSetFromExercise(exerciseIndex, sets.lastIndex)
-                    }
-                }
-            },
-            onAddExercise = onAddExercise,
-            onRemoveExercise = {
-                setGroups.lastOrNull()?.let { group ->
-                    viewModel.removeExercise(group)
-                }
-            },
-            onNavigateToStats = onNavigateToStats,
-            modifier = modifier.padding(paddingValues)
+            exercises               = exercises,
+            onExerciseWeightChange  = onExerciseWeightChange,
+            onExerciseRepsChange    = onExerciseRepsChange,
+            onAddSetToExercise      = onAddSetToExercise,
+            onRemoveSetFromExercise = onRemoveSetFromExercise,
+            onAddExercise           = onAddExercise,
+            onRemoveExercise        = onRemoveExercise,
+            onNavigateToStats       = onNavigateToStats,
+            modifier                = modifier.padding(paddingValues)
         )
     }
 }
-
 
 @Composable
 fun CurrentWorkout(
@@ -170,13 +175,13 @@ fun CurrentWorkout(
                     Text("Add Exercise", modifier = Modifier.padding(start = 8.dp)) // TODO: make this a resource
                 }
 
-                ElevatedButton(
-                    onClick = onRemoveExercise,
-                    enabled = exercises.isNotEmpty()
-                ) {
-                    Icon(imageVector = Icons.Default.Close, contentDescription = "Remove Exercise")
-                    Text("Remove Exercise", modifier = Modifier.padding(start = 8.dp)) // TODO: make this a resource
-                }
+//                ElevatedButton(
+//                    onClick = onRemoveExercise,
+//                    enabled = exercises.isNotEmpty()
+//                ) {
+//                    Icon(imageVector = Icons.Default.Close, contentDescription = "Remove Exercise")
+//                    Text("Remove Exercise", modifier = Modifier.padding(start = 8.dp)) // TODO: make this a resource
+//                }
             }
         }
     }
@@ -272,7 +277,6 @@ fun Exercise(
                     Text(
                         text = "Remove Set", // TODO: make this into a resource
                         modifier = Modifier.padding(start = 8.dp)
-
                     )
                 }
             }
@@ -332,7 +336,6 @@ fun WorkoutTopAppBar() {
     )
 }
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UnitSelectorDropdown(
@@ -391,7 +394,7 @@ fun SetRow(
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 1.dp)
             .border(
-                width = 1.dp,
+                width = 2.75.dp,
                 color = MaterialTheme.colorScheme.secondaryContainer,
                 shape = RoundedCornerShape(12.dp)
             )
@@ -450,7 +453,32 @@ fun SetTextField(
         trailingIcon = trailingElement,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = modifier,
-        singleLine = true
+        singleLine = true,
+        shape = RoundedCornerShape(12.dp)
     )
 }
 
+@Preview(
+    name = "Dark Mode Preview",
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
+    showBackground = true
+)
+@Composable
+fun Preview_CurrentWorkoutScreenContent() {
+    FitnessappTheme {
+        val sampleExercises = listOf(
+            "Bench Press" to listOf("50" to "8", "55" to "6")//,
+//            "Squat"        to listOf("80" to "5", "80" to "4")
+        )
+        CurrentWorkoutScreenContent(
+            exercises               = sampleExercises,
+            onExerciseWeightChange  = { _, _, _ -> },
+            onExerciseRepsChange    = { _, _, _ -> },
+            onAddSetToExercise      = {},
+            onRemoveSetFromExercise = {},
+            onAddExercise           = {},
+            onRemoveExercise        = {},
+            onNavigateToStats       = {}
+        )
+    }
+}
