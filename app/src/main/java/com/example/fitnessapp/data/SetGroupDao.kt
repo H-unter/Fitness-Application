@@ -26,4 +26,9 @@ interface SetGroupDao {
     // delete one set‐group by its id.
     @Query("DELETE FROM SetGroup WHERE SetGroupid = :groupId")
     suspend fun deleteSetGroupById(groupId: Int)
+
+    // return all historical set groups that match a particular exercise id
+    @Query("SELECT * FROM SetGroup WHERE exerciseId = :exerciseId")
+    fun getExerciseActivityById(exerciseId: Long): Flow<List<SetGroupEntity>>
+
 }

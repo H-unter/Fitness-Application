@@ -3,23 +3,20 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 class ExerciseRepositoryImpl(
-    private val exerciseDao: ExerciseDao
+    private val exerciseDao: ExerciseDao,
+    private val setGroupDao: SetGroupDao
 ) : ExerciseRepository {
 
     override fun getAllExercises(): Flow<List<Exercise>> =
         exerciseDao
             .getExercises()
-            .map { exerciseEntityList ->
-                val exerciseDomainList = mutableListOf<Exercise>()
-                for (exerciseEntity in exerciseEntityList) {
-                    exerciseDomainList.add(
-                        Exercise(
-                            id   = exerciseEntity.exerciseId.toLong(),
-                            name = exerciseEntity.name
-                        )
+            .map { entityList ->
+                entityList.map { entity ->
+                    Exercise(
+                        id   = entity.exerciseId.toLong(),
+                        name = entity.name
                     )
                 }
-                exerciseDomainList
             }
 
     override suspend fun insertExercise(name: String) {
@@ -32,11 +29,26 @@ class ExerciseRepositoryImpl(
         exerciseDao.insertExercise(newExerciseEntity)
     }
 
-    override suspend fun getExerciseById(id: Long): Exercise? {
-        val entity = exerciseDao.getExerciseById(id.toInt()) ?: return null
+    override suspend fun getExerciseById(exerciseId: Long): Exercise? {
+        val entity = exerciseDao.getExerciseById(exerciseId.toInt()) ?: return null
         return Exercise(
             id   = entity.exerciseId.toLong(),
             name = entity.name
         )
     }
+
+    override suspend fun getExerciseActivityById(exerciseId: Long): Flow<List<SetGroup>> =
+        setGroupDao
+            .getExerciseActivityById(exerciseId)
+            .map { entityList ->
+                entityList.map { entity ->
+                    SetGroup(
+                        id         = entity.setGroupId,
+                        workoutId  = entity.workoutId,
+                        name       = entity.name,
+                        weightUnit = entity.weightUnit,
+                        sets       = entity.sets
+                    )
+                }
+            }
 }

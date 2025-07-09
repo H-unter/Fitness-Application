@@ -48,7 +48,12 @@ val appModule = module {
             scope        = get()
         )
     }
-    single<ExerciseRepository> { ExerciseRepositoryImpl(get()) }
+    single<ExerciseRepository> {
+        ExerciseRepositoryImpl(
+            exerciseDao = get(),
+            setGroupDao = get()
+        )
+    }
 
     viewModel { ExerciseListSelectionViewModel(exerciseRepository = get()) }
     viewModel { CurrentWorkoutViewModel(workoutRepository = get(), exerciseRepository  = get()) }
