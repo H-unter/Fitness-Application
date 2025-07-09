@@ -478,7 +478,8 @@ fun SetTextField(
 fun Preview_CurrentWorkoutScreenContent() {
     FitnessappTheme {
         val sampleExercises = listOf(
-            "Bench Press" to listOf("50" to "8", "55" to "6")
+            "Bench Press" to listOf("50" to "8", "55" to "6"),
+            "Squat" to listOf("80" to "8", "85" to "6")
         )
         CurrentWorkoutScreenContent(
             exercises               = sampleExercises,
