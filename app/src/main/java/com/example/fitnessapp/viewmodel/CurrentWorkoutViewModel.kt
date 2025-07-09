@@ -59,7 +59,8 @@ class CurrentWorkoutViewModel(
     }
 
     /** Remove an exercise (set-group) */
-    fun removeExercise(group: SetGroup) = viewModelScope.launch {
+    fun removeExercise(exerciseIndex: Int) = viewModelScope.launch {
+        val group = setGroups.value.getOrNull(exerciseIndex) ?: return@launch
         workoutRepository.removeExercise(group)
     }
 

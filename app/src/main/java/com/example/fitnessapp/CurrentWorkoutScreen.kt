@@ -23,12 +23,14 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.FitnessCenter
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.OutlinedTextField
@@ -44,6 +46,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.DrawModifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -94,7 +97,9 @@ fun CurrentWorkoutScreen(
             }
         },
         onAddExercise           = onAddExercise,
-        onRemoveExercise        = { setGroups.lastOrNull()?.let { viewModel.removeExercise(it) } },
+        onRemoveExercise        = { exerciseIndex ->
+            viewModel.removeExercise(exerciseIndex)
+        },
         onNavigateToStats       = onNavigateToStats,
         modifier                = modifier
     )
@@ -108,7 +113,7 @@ fun CurrentWorkoutScreenContent(
     onAddSetToExercise:         (exerciseIndex: Int) -> Unit,
     onRemoveSetFromExercise:    (exerciseIndex: Int) -> Unit,
     onAddExercise:              () -> Unit,
-    onRemoveExercise:           () -> Unit,
+    onRemoveExercise:           (exerciseIndex: Int) -> Unit,
     onNavigateToStats:          () -> Unit,
     modifier:                   Modifier = Modifier
 ) {
@@ -138,7 +143,7 @@ fun CurrentWorkout(
     onAddSetToExercise: (exerciseIndex: Int) -> Unit,
     onRemoveSetFromExercise: (exerciseIndex: Int) -> Unit,
     onAddExercise: () -> Unit,
-    onRemoveExercise: () -> Unit,
+    onRemoveExercise: (exerciseIndex: Int) -> Unit,
     onNavigateToStats: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -149,6 +154,7 @@ fun CurrentWorkout(
     ) {
         itemsIndexed(exercises) { exerciseIndex, (exerciseName, sets) ->
             Exercise(
+                index = exerciseIndex,
                 name = exerciseName,
                 sets = sets,
                 onWeightChange = { setIndex, newWeight ->
@@ -159,7 +165,8 @@ fun CurrentWorkout(
                 },
                 onAddSet = { onAddSetToExercise(exerciseIndex) },
                 onRemoveSet = { onRemoveSetFromExercise(exerciseIndex)},
-                onNavigateToStats = {onNavigateToStats()}
+                onNavigateToStats = {onNavigateToStats()},
+                onRemoveExercise = {onRemoveExercise(exerciseIndex)}
             )
         }
 
@@ -174,14 +181,6 @@ fun CurrentWorkout(
                     Icon(imageVector = Icons.Default.Add, contentDescription = "Add Exercise")
                     Text("Add Exercise", modifier = Modifier.padding(start = 8.dp)) // TODO: make this a resource
                 }
-
-//                ElevatedButton(
-//                    onClick = onRemoveExercise,
-//                    enabled = exercises.isNotEmpty()
-//                ) {
-//                    Icon(imageVector = Icons.Default.Close, contentDescription = "Remove Exercise")
-//                    Text("Remove Exercise", modifier = Modifier.padding(start = 8.dp)) // TODO: make this a resource
-//                }
             }
         }
     }
@@ -189,6 +188,7 @@ fun CurrentWorkout(
 
 @Composable
 fun Exercise(
+    index: Int,
     name: String,
     sets: List<Pair<String, String>>,
     onWeightChange: (Int, String) -> Unit,
@@ -196,6 +196,7 @@ fun Exercise(
     onAddSet: () -> Unit,
     onRemoveSet: () -> Unit,
     onNavigateToStats: () -> Unit,
+    onRemoveExercise: (index: Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var selectedWeightUnit by remember { mutableStateOf("Kg") }
@@ -223,24 +224,34 @@ fun Exercise(
                 Text(
                     text = "$name",
                     style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.weight(10f)
+                    modifier = Modifier.weight(100f)
                 )
 
                 UnitSelectorDropdown(
                     selectedUnit = selectedWeightUnit,
                     onUnitSelected = { selectedWeightUnit = it },
-                    modifier = Modifier.weight(4f)
+                    modifier = Modifier.weight(30f)
                 )
                 FilledIconButton(
-                    onClick = {
-                        Log.i("MY_MESSAGE", "Navigating to ExerciseStatsScreen")
-                        onNavigateToStats()
-                    },
-                    modifier = Modifier.weight(2f)
+                    onClick = {onNavigateToStats()},
+                    modifier = Modifier.weight(22f)
                 ) {
                     Icon(
                         imageVector = Icons.Default.BarChart,
                         contentDescription = "Exercise Stats"
+                    )
+                }
+                FilledIconButton(
+                    onClick = {onRemoveExercise(index)},
+                    modifier = Modifier.weight(22f),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor   = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                ){
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Remove Exercise"
                     )
                 }
             }
@@ -270,6 +281,10 @@ fun Exercise(
                 }
                 ElevatedButton(
                     onClick = onRemoveSet,
+                    colors = ButtonDefaults.elevatedButtonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor   = MaterialTheme.colorScheme.onErrorContainer
+                    ),
                     modifier = Modifier
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
@@ -295,7 +310,7 @@ fun WorkoutTopAppBar() {
     MediumTopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
-            titleContentColor = MaterialTheme.colorScheme.primary,
+            titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
         ),
         title = {Text(
             text = "Monday Workout",
@@ -387,15 +402,15 @@ fun SetRow(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        contentColor = MaterialTheme.colorScheme.onSurface,
         shape = RoundedCornerShape(12.dp),
         tonalElevation = 2.dp,
+        color = MaterialTheme.colorScheme.surface,
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 1.dp)
             .border(
                 width = 2.75.dp,
-                color = MaterialTheme.colorScheme.secondaryContainer,
+                color = MaterialTheme.colorScheme.primaryContainer,
                 shape = RoundedCornerShape(12.dp)
             )
     ) {
@@ -458,27 +473,43 @@ fun SetTextField(
     )
 }
 
+
+@Composable
+fun Preview_CurrentWorkoutScreenContent() {
+    FitnessappTheme {
+        val sampleExercises = listOf(
+            "Bench Press" to listOf("50" to "8", "55" to "6")
+        )
+        CurrentWorkoutScreenContent(
+            exercises               = sampleExercises,
+            onExerciseWeightChange  = { _, _, _ -> },
+            onExerciseRepsChange    = { _, _, _ -> },
+            onAddSetToExercise      = { _ -> },
+            onRemoveSetFromExercise = { _ -> },
+            onAddExercise           = {},
+            onRemoveExercise        = { _ -> },
+            onNavigateToStats       = {}
+        )
+    }
+}
+
+// 2) Previews must also be zero-arg and call the above wrapper
+@Preview(
+    name = "Light Mode Preview",
+    uiMode = Configuration.UI_MODE_NIGHT_NO,
+    showBackground = true
+)
+@Composable
+fun Preview_CurrentWorkoutScreenContent_Light() {
+    Preview_CurrentWorkoutScreenContent()
+}
+
 @Preview(
     name = "Dark Mode Preview",
     uiMode = Configuration.UI_MODE_NIGHT_YES,
     showBackground = true
 )
 @Composable
-fun Preview_CurrentWorkoutScreenContent() {
-    FitnessappTheme {
-        val sampleExercises = listOf(
-            "Bench Press" to listOf("50" to "8", "55" to "6")//,
-//            "Squat"        to listOf("80" to "5", "80" to "4")
-        )
-        CurrentWorkoutScreenContent(
-            exercises               = sampleExercises,
-            onExerciseWeightChange  = { _, _, _ -> },
-            onExerciseRepsChange    = { _, _, _ -> },
-            onAddSetToExercise      = {},
-            onRemoveSetFromExercise = {},
-            onAddExercise           = {},
-            onRemoveExercise        = {},
-            onNavigateToStats       = {}
-        )
-    }
+fun Preview_CurrentWorkoutScreenContent_Dark() {
+    Preview_CurrentWorkoutScreenContent()
 }
