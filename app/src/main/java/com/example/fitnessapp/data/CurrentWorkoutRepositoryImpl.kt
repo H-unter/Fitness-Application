@@ -50,6 +50,7 @@ class CurrentWorkoutRepositoryImpl(
     }
 
     // get the full workout
+    @kotlinx.coroutines.ExperimentalCoroutinesApi
     override fun getCurrentWorkout(): Flow<Workout> =
         workoutDao.getCurrentWorkout()
             .filterNotNull()

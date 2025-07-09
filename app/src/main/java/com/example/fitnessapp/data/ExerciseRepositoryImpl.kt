@@ -37,7 +37,7 @@ class ExerciseRepositoryImpl(
         )
     }
 
-    override suspend fun getExerciseActivityById(exerciseId: Long): Flow<List<SetGroup>> =
+    override fun getExerciseActivityById(exerciseId: Long): Flow<List<SetGroup>> =
         setGroupDao
             .getExerciseActivityById(exerciseId)
             .map { entityList ->

@@ -15,5 +15,5 @@ interface ExerciseDao {
     fun getExercises(): Flow<List<ExerciseEntity>>
 
     @Query("SELECT * FROM Exercise WHERE exerciseId = :id")
-    fun getExerciseById(id: Int): ExerciseEntity?
+    suspend fun getExerciseById(id: Int): ExerciseEntity?
 }

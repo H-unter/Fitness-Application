@@ -20,30 +20,29 @@ class CurrentWorkoutViewModel(
     private val exerciseRepository: ExerciseRepository
 ) : ViewModel() {
 
-    /** The current workout (or null if none started) */
+    // the current workout (or null if none started)
     val currentWorkout: StateFlow<Workout?> =
         workoutRepository
             .getCurrentWorkout()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    /** The list of exercises (set-groups) in that workout */
+    // the list of exercises (setGroups) in that workout
     val setGroups: StateFlow<List<SetGroup>> =
         workoutRepository
             .getSetGroups()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** Kick off a brand-new workout; returns the new rowId under the hood */
+    // kick off a brand new workout; returns the new rowId under the hood
     fun startNewWorkout(gymId: Int = 0) = viewModelScope.launch {
         workoutRepository.startNewWorkout(gymId)
     }
 
-    /** Mark the current workout as finished */
+    // mark the current workout as finished
     fun finishCurrentWorkout() = viewModelScope.launch {
         workoutRepository.finishCurrentWorkout()
     }
 
-
-    /* Add an exercise (set-group) by its ID */
+    // add an exercise (setGroup) by its id
     fun addExerciseById(exerciseId: Long) = viewModelScope.launch {
         val picked = exerciseRepository.getExerciseById(exerciseId) ?: return@launch
         Log.d("CurrentWorkoutViewModel", "picked = $picked, exerciseId = $exerciseId, name = ${picked.name}")
@@ -58,28 +57,28 @@ class CurrentWorkoutViewModel(
         workoutRepository.addExercise(newSetGroup)
     }
 
-    /** Remove an exercise (set-group) */
+    // remove an exercise SetGroup
     fun removeExercise(exerciseIndex: Int) = viewModelScope.launch {
         val group = setGroups.value.getOrNull(exerciseIndex) ?: return@launch
         workoutRepository.removeExercise(group)
     }
 
-    /** Add a new set to a specific exercise */
+    // add a new set to a specific exercise
     fun addSetToExercise(exerciseIndex: Int) = viewModelScope.launch {
         workoutRepository.addSetToExercise(exerciseIndex)
     }
 
-    /** Remove a set from a specific exercise */
+    // remove a set from a specific exercise
     fun removeSetFromExercise(exerciseIndex: Int, setIndex: Int) = viewModelScope.launch {
         workoutRepository.removeSetFromExercise(exerciseIndex, setIndex)
     }
 
-    /** Update one set’s weight in a given exercise */
+    // update one set’s weight in a given exercise
     fun updateSetWeight(exerciseIndex: Int, setIndex: Int, newWeight: String) = viewModelScope.launch {
         workoutRepository.updateSetWeight(exerciseIndex, setIndex, newWeight)
     }
 
-    /** Update one set’s reps in a given exercise */
+    // Update one sets reps in a given exercise
     fun updateSetReps(exerciseIndex: Int, setIndex: Int, newReps: String) = viewModelScope.launch {
         workoutRepository.updateSetReps(exerciseIndex, setIndex, newReps)
     }

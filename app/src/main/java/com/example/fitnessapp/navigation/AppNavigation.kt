@@ -22,10 +22,10 @@ fun AppNavigation() {
     ) {
         // 1) Main workout screen
         composable(Screens.CurrentWorkoutScreen.route) { backStackEntry ->
-            // ① grab the same ViewModel
+
+
             val workoutViewModel: CurrentWorkoutViewModel = koinViewModel()
 
-            // ② observe the 'selected_exercise_id' in SavedStateHandle
             backStackEntry.savedStateHandle
                 .getLiveData<Long>("selected_exercise_id")
                 .observe(backStackEntry) { exerciseId ->
@@ -33,7 +33,6 @@ fun AppNavigation() {
                     backStackEntry.savedStateHandle.remove<Long>("selected_exercise_id")
                 }
 
-            // ③ show your screen, routing Add Exercise into the picker
             CurrentWorkoutScreen(
                 onAddExercise = {
                     navController.navigate(Screens.ExerciseListSelectionScreen.route)

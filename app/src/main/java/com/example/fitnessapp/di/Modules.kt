@@ -10,6 +10,7 @@ import com.example.fitnessapp.data.GymActivityDatabase
 import com.example.fitnessapp.data.SetGroupDao
 import com.example.fitnessapp.data.WorkoutDao
 import com.example.fitnessapp.viewmodel.CurrentWorkoutViewModel
+import com.example.fitnessapp.viewmodel.ExerciseHistoryViewModel
 import com.example.fitnessapp.viewmodel.ExerciseListSelectionViewModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -48,6 +49,7 @@ val appModule = module {
             scope        = get()
         )
     }
+
     single<ExerciseRepository> {
         ExerciseRepositoryImpl(
             exerciseDao = get(),
@@ -57,4 +59,6 @@ val appModule = module {
 
     viewModel { ExerciseListSelectionViewModel(exerciseRepository = get()) }
     viewModel { CurrentWorkoutViewModel(workoutRepository = get(), exerciseRepository  = get()) }
+    viewModel { ExerciseHistoryViewModel(exerciseRepository = get(), savedStateHandle = get()) }
+
 }

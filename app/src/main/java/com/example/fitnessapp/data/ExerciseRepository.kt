@@ -12,6 +12,6 @@ interface ExerciseRepository {
     suspend fun getExerciseById(id: Long): Exercise?
 
     // return all exercise activity (all setGroups) given an exercise id, used in the ExerciseHistoryScreen
-    suspend fun getExerciseActivityById(exerciseId: Long): Flow<List<SetGroup>>
+    fun getExerciseActivityById(exerciseId: Long): Flow<List<SetGroup>>
 
 }

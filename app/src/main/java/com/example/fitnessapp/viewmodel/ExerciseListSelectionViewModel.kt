@@ -14,7 +14,7 @@ class ExerciseListSelectionViewModel(
     private val exerciseRepository: ExerciseRepository
 ) : ViewModel() {
 
-    /** The list of all exercises available for selection */
+    // the list of all exercises available for selection
     val exercises: StateFlow<List<Exercise>> =
         exerciseRepository
             .getAllExercises()
@@ -24,7 +24,7 @@ class ExerciseListSelectionViewModel(
                 initialValue = emptyList()
             )
 
-    /** Create a brand-new exercise with the given name */
+    // create a brand new exercise with the given name //
     fun createExercise(name: String) = viewModelScope.launch {
         Log.i(
             "ExerciseListSelectionViewModel",
