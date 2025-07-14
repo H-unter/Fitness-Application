@@ -1,60 +1,64 @@
 package com.example.fitnessapp
 
-
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import android.content.res.Configuration
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.fitnessapp.ui.theme.FitnessappTheme
+import com.example.fitnessapp.viewmodel.ExerciseHistoryViewModel
+import org.koin.androidx.compose.koinViewModel
 
-@Preview
 @Composable
-fun ExerciseHistoryScreenPreview() {
-    FitnessappTheme {
-        ExerciseHistoryScreen(Modifier)
-    }
+fun ExerciseHistoryScreen(
+    modifier: Modifier = Modifier,
+    viewModel: ExerciseHistoryViewModel = koinViewModel()
+) {
+    val exerciseName = viewModel.exerciseName
+    val history = viewModel.exerciseHistory.collectAsStateWithLifecycle()
+
+    ExerciseHistoryScreenContent(
+        exerciseName = exerciseName,
+        history = history.value,
+        modifier = modifier
+    )
 }
 
 @Composable
-fun ExerciseHistoryScreen(modifier: Modifier = Modifier) {
+fun ExerciseHistoryScreenContent(
+    exerciseName: String,
+    history: List<Triple<String, List<Pair<String, String>>, Int>>,
+    modifier: Modifier = Modifier
+) {
     Scaffold(
-        bottomBar = { BottomNavigationBar() },
-        content = { paddingValues ->
-            Column(
-                modifier = modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp)
-            ) {
-                ExerciseHistoryPlot(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp) // Temporary height for the graph placeholder
-                )
-                Text(
-                    text = "Exercise History",
-                    style = MaterialTheme.typography.headlineSmall
-                )
+        bottomBar = { BottomNavigationBar() }
+    ) { paddingValues ->
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            ExerciseHistoryPlot(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+            )
 
-                ExerciseHistory()
-            }
+            Text(
+                text = "Exercise History: $exerciseName",
+                style = MaterialTheme.typography.headlineSmall
+            )
+
+            ExerciseHistory(history = history)
         }
-    )
+    }
 }
 
 @Composable
@@ -65,39 +69,26 @@ fun ExerciseHistoryPlot(modifier: Modifier = Modifier) {
         tonalElevation = 2.dp,
         color = MaterialTheme.colorScheme.surfaceContainer
     ) {
+        // TODO: Replace with real plot
     }
 }
 
 @Composable
-fun ExerciseHistory(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-    ) {
-        HistoricalExerciseCard(
-            date = "Yesterday",
-            sets = listOf(
-                "10" to "8",
-                "12" to "6",
-                "8" to "10"
-            ),
-            rpe = 8
-        )
-
-        HistoricalExerciseCard(
-            date = "2 Days Ago",
-            sets = listOf(
-                "15" to "5",
-                "13" to "6",
-                "14" to "5"
-            ),
-            rpe = 7
-        )
-
-        Spacer(modifier = Modifier.height(80.dp)) // prevent FAB from overlapping last card
+fun ExerciseHistory(
+    history: List<Triple<String, List<Pair<String, String>>, Int>>,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        history.forEach { (date, sets, rpe) ->
+            HistoricalExerciseCard(
+                date = date,
+                sets = sets,
+                rpe = rpe
+            )
+        }
+        Spacer(modifier = Modifier.height(80.dp))
     }
 }
-
 
 @Composable
 fun HistoricalExerciseCard(
@@ -179,10 +170,43 @@ fun HistoricalSetRow(
         )
         Text(
             text = "RPE $rpe; Vol $volume; 1RM: ${String.format("%.1f", oneRepMax)}",
-            style = if (isMax) MaterialTheme.typography.bodyMedium.copy(
-                fontWeight = FontWeight.Bold
-            ) else MaterialTheme.typography.bodyMedium
+            style = if (isMax)
+                MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+            else
+                MaterialTheme.typography.bodyMedium
         )
     }
 }
 
+@Composable
+fun Preview_ExerciseHistoryScreenContent() {
+    FitnessappTheme {
+        ExerciseHistoryScreenContent(
+            exerciseName = "Bench Press",
+            history = listOf(
+                Triple("Yesterday", listOf("50" to "8", "55" to "6"), 8),
+                Triple("2 Days Ago", listOf("60" to "5", "62.5" to "5", "65" to "4"), 7)
+            )
+        )
+    }
+}
+
+@Preview(
+    name = "Light Mode",
+    uiMode = Configuration.UI_MODE_NIGHT_NO,
+    showBackground = true
+)
+@Composable
+fun Preview_ExerciseHistoryScreenContent_Light() {
+    Preview_ExerciseHistoryScreenContent()
+}
+
+@Preview(
+    name = "Dark Mode",
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
+    showBackground = true
+)
+@Composable
+fun Preview_ExerciseHistoryScreenContent_Dark() {
+    Preview_ExerciseHistoryScreenContent()
+}

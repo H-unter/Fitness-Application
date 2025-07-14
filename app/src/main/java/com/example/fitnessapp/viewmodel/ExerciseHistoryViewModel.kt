@@ -7,6 +7,7 @@ import com.example.fitnessapp.data.ExerciseRepository
 import com.example.fitnessapp.data.SetGroup
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 class ExerciseHistoryViewModel (
@@ -16,12 +17,21 @@ class ExerciseHistoryViewModel (
 
     private val exerciseId: Long = savedStateHandle.get<Long>("exerciseId") ?: 0L
 
-    val exerciseHistory: StateFlow<List<SetGroup>> =
+    val exerciseName: String = savedStateHandle.get<String>("exerciseName") ?: ""
+
+    val exerciseHistory: StateFlow<List<Triple<String, List<Pair<String, String>>, Int>>> =
         exerciseRepository
             .getExerciseActivityById(exerciseId)
+            .map { setGroups ->
+                setGroups.map { setGroup ->
+                    val label = setGroup.name // using name as a placeholder for date
+                    val sets = setGroup.sets.map { it.weight.toString() to it.reps.toString() }
+                    Triple(label, sets, 8) // TODO: make rpe not hardcoded
+                }
+            }
             .stateIn(
-                scope        = viewModelScope,
-                started      = SharingStarted.WhileSubscribed(5_000),
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
                 initialValue = emptyList()
             )
 }
