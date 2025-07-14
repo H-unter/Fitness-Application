@@ -6,7 +6,7 @@ import androidx.room.TypeConverters
 
 @Database(
     entities = [WorkoutEntity::class, ExerciseEntity::class, SetGroupEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(SetTypeConverters::class, WeightUnitTypeConverters::class)
