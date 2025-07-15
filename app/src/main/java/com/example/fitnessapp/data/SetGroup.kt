@@ -1,11 +1,12 @@
 package com.example.fitnessapp.data
 
 data class SetGroup(
-    val id: Int,
+    val setGroupId: Int,
     val workoutId: Int,
     val name: String,
     val weightUnit: WeightUnit,
-    val sets: List<SetItem>
+    val exerciseName: String,
+    val entries: List<SetEntryEntity>
 )
 
 

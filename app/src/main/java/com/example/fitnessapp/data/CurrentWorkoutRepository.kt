@@ -11,7 +11,7 @@ interface CurrentWorkoutRepository {
     suspend fun finishCurrentWorkout()
 
     fun getCurrentWorkout(): Flow<Workout>
-    fun getSetGroups(): Flow<List<SetGroup>> // this is an attribute inside the workout class
+    fun getSetGroups(): Flow<List<SetGroup>>
 
     suspend fun addExercise(setGroup: SetGroup) // add a setGroup to the current workout
     suspend fun removeExercise(setGroup: SetGroup) // remove a setGroup from the current workout

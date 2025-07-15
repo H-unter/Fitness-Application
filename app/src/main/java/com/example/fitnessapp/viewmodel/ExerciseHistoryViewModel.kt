@@ -25,7 +25,7 @@ class ExerciseHistoryViewModel (
             .map { setGroups ->
                 setGroups.map { setGroup ->
                     val label = setGroup.name // using name as a placeholder for date
-                    val sets = setGroup.sets.map { it.weight.toString() to it.reps.toString() }
+                    val sets = setGroup.entries.map { it.weight.toString() to it.reps.toString() }
                     Triple(label, sets, 8) // TODO: make rpe not hardcoded
                 }
             }

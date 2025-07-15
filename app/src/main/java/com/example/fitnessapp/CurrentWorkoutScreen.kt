@@ -80,9 +80,7 @@ fun CurrentWorkoutScreen(
     }
 
     // map domain SetGroup to UI exercise list
-    val exercises = setGroups.map { group ->
-        group.name to group.sets.map { it.weight to it.reps }
-    }
+    val exercises by viewModel.exerciseUiList.collectAsState()
 
     CurrentWorkoutScreenContent(
         exercises = exercises,

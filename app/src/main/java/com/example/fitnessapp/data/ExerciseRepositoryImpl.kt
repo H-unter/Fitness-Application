@@ -1,4 +1,5 @@
 package com.example.fitnessapp.data
+
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -8,47 +9,36 @@ class ExerciseRepositoryImpl(
 ) : ExerciseRepository {
 
     override fun getAllExercises(): Flow<List<Exercise>> =
-        exerciseDao
-            .getExercises()
-            .map { entityList ->
-                entityList.map { entity ->
-                    Exercise(
-                        id   = entity.exerciseId.toLong(),
-                        name = entity.name
-                    )
-                }
+        exerciseDao.getExercises().map { exerciseEntities ->
+            exerciseEntities.map { entity ->
+                Exercise(
+                    id = entity.exerciseId.toLong(),
+                    name = entity.name
+                )
             }
+        }
 
-    override suspend fun insertExercise(name: String) {
+    override suspend fun insertExercise(name: String): Int {
         val trimmedName = name.trim()
-        val newExerciseEntity = ExerciseEntity(
-            exerciseId          = 0,               // auto-assign
-//            TODO: add exercise variation, perhaps through a secondary table
-            name                = trimmedName
+        val entity = ExerciseEntity(
+            exerciseId = 0,
+            name = trimmedName
         )
-        exerciseDao.insertExercise(newExerciseEntity)
+        return exerciseDao.insertExercise(entity).toInt()
     }
 
-    override suspend fun getExerciseById(exerciseId: Long): Exercise? {
-        val entity = exerciseDao.getExerciseById(exerciseId.toInt()) ?: return null
-        return Exercise(
-            id   = entity.exerciseId.toLong(),
-            name = entity.name
-        )
+    override suspend fun getExerciseById(id: Long): Exercise? {
+        return exerciseDao.getExerciseById(id.toInt())?.let { entity ->
+            Exercise(
+                id = entity.exerciseId.toLong(),
+                name = entity.name
+            )
+        }
     }
 
     override fun getExerciseActivityById(exerciseId: Long): Flow<List<SetGroup>> =
-        setGroupDao
-            .getExerciseActivityById(exerciseId)
-            .map { entityList ->
-                entityList.map { entity ->
-                    SetGroup(
-                        id         = entity.setGroupId,
-                        workoutId  = entity.workoutId,
-                        name       = entity.name,
-                        weightUnit = entity.weightUnit,
-                        sets       = entity.sets
-                    )
-                }
+        setGroupDao.getSetGroupsWithEntriesByExerciseId(exerciseId)
+            .map { groupWithEntriesList ->
+                groupWithEntriesList.map { it.toDomain() }
             }
 }
