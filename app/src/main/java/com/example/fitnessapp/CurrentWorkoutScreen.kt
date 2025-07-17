@@ -39,6 +39,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,70 +51,78 @@ import androidx.compose.ui.draw.DrawModifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavHostController
+import com.example.fitnessapp.data.SetEntry
+import com.example.fitnessapp.data.SetGroup
+import com.example.fitnessapp.navigation.Screens
 import com.example.fitnessapp.ui.theme.FitnessappTheme
 import com.example.fitnessapp.viewmodel.CurrentWorkoutViewModel
 import kotlinx.coroutines.flow.map
 import org.koin.androidx.compose.koinViewModel
 
-
 @Composable
 fun CurrentWorkoutScreen(
-    onNavigateToStats: () -> Unit = {},
-    onAddExercise:    () -> Unit = {},
-    modifier: Modifier = Modifier
+    navController: NavHostController,
+    modifier: Modifier = Modifier,
+    viewModel: CurrentWorkoutViewModel = koinViewModel()
 ) {
-    val viewModel: CurrentWorkoutViewModel = koinViewModel()
-    val currentWorkout by viewModel.currentWorkout.collectAsState(initial = null)
-    val setGroups by viewModel.setGroups.collectAsState(initial = emptyList())
+    val setGroups = viewModel.setGroups.collectAsState().value
 
-    // if there is no active workout, prompt user to start one
-    if (currentWorkout == null) {
-        Box(
-            modifier = modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            ElevatedButton(onClick = { viewModel.startNewWorkout() }) {
-                Text(text = "Start Workout")
-            }
+    val selectedExerciseId = navController.currentBackStackEntry
+        ?.savedStateHandle
+        ?.getStateFlow<Long?>("selectedExerciseId", null)
+        ?.collectAsState()
+        ?.value
+
+    val currentWorkout by viewModel.currentWorkout.collectAsState()
+
+    LaunchedEffect(selectedExerciseId, currentWorkout) {
+        if (selectedExerciseId != null && currentWorkout != null) {
+            viewModel.addExerciseById(selectedExerciseId)
+            navController.currentBackStackEntry
+                ?.savedStateHandle
+                ?.set("selectedExerciseId", null)
         }
-        return
     }
 
-    // map domain SetGroup to UI exercise list
-    val exercises by viewModel.exerciseUiList.collectAsState()
-
     CurrentWorkoutScreenContent(
-        exercises = exercises,
-        onExerciseWeightChange  = viewModel::updateSetWeight,
-        onExerciseRepsChange    = viewModel::updateSetReps,
-        onAddSetToExercise      = viewModel::addSetToExercise,
+        exercises = setGroups.map { it.exerciseName to it.entries.map { e -> e.weight.toString() to e.reps.toString() } },
+        setGroups = setGroups,
+        onExerciseWeightChange = viewModel::updateSetWeight,
+        onExerciseRepsChange = viewModel::updateSetReps,
+        onAddSetToExercise = viewModel::addSetToExercise,
         onRemoveSetFromExercise = { index ->
-            exercises.getOrNull(index)?.let { (_, sets) ->
-                if (sets.isNotEmpty()) {
-                    viewModel.removeSetFromExercise(index, sets.lastIndex)
-                }
+            val group = setGroups.getOrNull(index)
+            if (group != null && group.entries.isNotEmpty()) {
+                viewModel.removeSetFromExercise(index, group.entries.lastIndex)
             }
         },
-        onAddExercise           = onAddExercise,
-        onRemoveExercise        = { exerciseIndex ->
-            viewModel.removeExercise(exerciseIndex)
+        onAddExercise = {
+            navController.navigate(Screens.ExerciseListSelectionScreen.route)
         },
-        onNavigateToStats       = onNavigateToStats,
-        modifier                = modifier
+        onRemoveExercise = viewModel::removeExercise,
+        onNavigateToStats = { exerciseId ->
+            navController.navigate(
+                Screens.ExerciseStatsScreen.createRoute(exerciseId)
+            )
+        },
+        modifier = modifier
     )
 }
+
 
 @Composable
 fun CurrentWorkoutScreenContent(
     exercises: List<Pair<String, List<Pair<String, String>>>>,
-    onExerciseWeightChange:     (exerciseIndex: Int, setIndex: Int, newWeight: String) -> Unit,
-    onExerciseRepsChange:       (exerciseIndex: Int, setIndex: Int, newReps: String) -> Unit,
-    onAddSetToExercise:         (exerciseIndex: Int) -> Unit,
-    onRemoveSetFromExercise:    (exerciseIndex: Int) -> Unit,
-    onAddExercise:              () -> Unit,
-    onRemoveExercise:           (exerciseIndex: Int) -> Unit,
-    onNavigateToStats:          () -> Unit,
-    modifier:                   Modifier = Modifier
+    setGroups: List<SetGroup>,
+    onExerciseWeightChange: (Int, Int, String) -> Unit,
+    onExerciseRepsChange: (Int, Int, String) -> Unit,
+    onAddSetToExercise: (Int) -> Unit,
+    onRemoveSetFromExercise: (Int) -> Unit,
+    onAddExercise: () -> Unit,
+    onRemoveExercise: (Int) -> Unit,
+    onNavigateToStats: (Long) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Scaffold(
         topBar    = { WorkoutTopAppBar() },
@@ -121,6 +130,7 @@ fun CurrentWorkoutScreenContent(
     ) { paddingValues: PaddingValues ->
         CurrentWorkout(
             exercises               = exercises,
+            setGroups               = setGroups,
             onExerciseWeightChange  = onExerciseWeightChange,
             onExerciseRepsChange    = onExerciseRepsChange,
             onAddSetToExercise      = onAddSetToExercise,
@@ -136,13 +146,14 @@ fun CurrentWorkoutScreenContent(
 @Composable
 fun CurrentWorkout(
     exercises: List<Pair<String, List<Pair<String, String>>>>,
+    setGroups: List<SetGroup>,
     onExerciseWeightChange: (exerciseIndex: Int, setIndex: Int, newWeight: String) -> Unit,
     onExerciseRepsChange: (exerciseIndex: Int, setIndex: Int, newReps: String) -> Unit,
     onAddSetToExercise: (exerciseIndex: Int) -> Unit,
     onRemoveSetFromExercise: (exerciseIndex: Int) -> Unit,
     onAddExercise: () -> Unit,
     onRemoveExercise: (exerciseIndex: Int) -> Unit,
-    onNavigateToStats: () -> Unit,
+    onNavigateToStats: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -163,7 +174,7 @@ fun CurrentWorkout(
                 },
                 onAddSet = { onAddSetToExercise(exerciseIndex) },
                 onRemoveSet = { onRemoveSetFromExercise(exerciseIndex)},
-                onNavigateToStats = {onNavigateToStats()},
+                onNavigateToStats = {onNavigateToStats(setGroups[exerciseIndex].exerciseId.toLong())},
                 onRemoveExercise = {onRemoveExercise(exerciseIndex)}
             )
         }
@@ -481,6 +492,7 @@ fun Preview_CurrentWorkoutScreenContent() {
         )
         CurrentWorkoutScreenContent(
             exercises               = sampleExercises,
+            setGroups               = emptyList(),
             onExerciseWeightChange  = { _, _, _ -> },
             onExerciseRepsChange    = { _, _, _ -> },
             onAddSetToExercise      = { _ -> },

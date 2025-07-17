@@ -57,12 +57,14 @@ class CurrentWorkoutViewModel(
 
     // add an exercise (setGroup) by its id
     fun addExerciseById(exerciseId: Long) = viewModelScope.launch {
+
         val selectedExercise = exerciseRepository.getExerciseById(exerciseId) ?: return@launch
         Log.d("CurrentWorkoutViewModel", "selectedExercise = $selectedExercise, exerciseId = $exerciseId, name = ${selectedExercise.name}")
         val workout = currentWorkout.value ?: return@launch
         val newSetGroup = SetGroup(
             setGroupId = 0,
             workoutId = workout.id,
+            exerciseId = exerciseId.toInt(),
             name = selectedExercise.name,
             weightUnit = WeightUnit.KG,
             exerciseName = selectedExercise.name,

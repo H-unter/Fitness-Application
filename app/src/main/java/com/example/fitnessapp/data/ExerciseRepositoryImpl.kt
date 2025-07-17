@@ -12,7 +12,7 @@ class ExerciseRepositoryImpl(
         exerciseDao.getExercises().map { exerciseEntities ->
             exerciseEntities.map { entity ->
                 Exercise(
-                    id = entity.exerciseId.toLong(),
+                    exerciseId = entity.exerciseId.toLong(),
                     name = entity.name
                 )
             }
@@ -30,7 +30,7 @@ class ExerciseRepositoryImpl(
     override suspend fun getExerciseById(id: Long): Exercise? {
         return exerciseDao.getExerciseById(id.toInt())?.let { entity ->
             Exercise(
-                id = entity.exerciseId.toLong(),
+                exerciseId = entity.exerciseId.toLong(),
                 name = entity.name
             )
         }

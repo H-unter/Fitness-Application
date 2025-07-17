@@ -158,6 +158,7 @@ fun SetGroupWithEntries.toDomain(): SetGroup {
         name = exercise?.name ?: "[Unknown Exercise]",
         weightUnit = group.weightUnit,
         exerciseName = exercise?.name ?: "[Unknown Exercise]",
+        exerciseId = exercise?.exerciseId ?: 0,
         entries = entries
     )
 }
