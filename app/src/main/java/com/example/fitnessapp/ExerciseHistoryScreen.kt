@@ -1,17 +1,36 @@
 package com.example.fitnessapp
 
 import android.content.res.Configuration
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -21,8 +40,28 @@ import androidx.navigation.NavHostController
 import com.example.fitnessapp.ui.theme.FitnessappTheme
 import com.example.fitnessapp.viewmodel.ExerciseHistoryViewModel
 import com.example.fitnessapp.viewmodel.SetGroupDisplayData
+import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
+import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesianLayer
+import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
+import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
+import com.patrykandpatrick.vico.compose.common.component.rememberLineComponent
+import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
+import com.patrykandpatrick.vico.compose.common.component.shapeComponent
+import com.patrykandpatrick.vico.compose.common.fill
+import com.patrykandpatrick.vico.compose.common.rememberHorizontalLegend
+import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
+import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
+import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.core.cartesian.data.columnSeries
+import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
+import com.patrykandpatrick.vico.core.cartesian.layer.ColumnCartesianLayer
+import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
+import com.patrykandpatrick.vico.core.common.LegendItem
+import com.patrykandpatrick.vico.core.common.data.ExtraStore
+import com.patrykandpatrick.vico.core.common.shape.CorneredShape
 import org.koin.androidx.compose.koinViewModel
-import kotlin.Double
 
 
 @Composable
@@ -119,18 +158,80 @@ fun ExerciseHistoryTopAppBar(
 }
 
 
+private val HistoryLegendKey = ExtraStore.Key<List<String>>()
+
 @Composable
 fun ExerciseHistoryPlot(modifier: Modifier = Modifier) {
+
+    val barColor  = MaterialTheme.colorScheme.primary.toArgb()
+    val lineColor = MaterialTheme.colorScheme.secondary.toArgb()
+
+
+    val textComponent = rememberTextComponent(
+        color = MaterialTheme.colorScheme.onSurface
+    )
+
+    // TODO: let this live in the ViewModel
+    val modelProducer = remember { CartesianChartModelProducer() }
+    LaunchedEffect(Unit) {
+        modelProducer.runTransaction {
+            columnSeries  { series(5,6,5,2,11,8,5,2,15,11,8,13,12,10,2,7) }
+            lineSeries    { series(8,9,7,5,13,10,7,5,18,12,10,15,14,12,5,9) }
+            extras { it[HistoryLegendKey] = listOf("Volume", "1RM") }
+        }
+    }
+
     Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
+        modifier       = modifier,
+        shape          = RoundedCornerShape(12.dp),
         tonalElevation = 2.dp,
-        color = MaterialTheme.colorScheme.surfaceContainer
+        color          = MaterialTheme.colorScheme.surfaceContainer
     ) {
-        // TODO: Replace with real plot
+        Column(Modifier.fillMaxSize().padding(8.dp)) {
+
+            CartesianChartHost(
+                chart = rememberCartesianChart(
+                    //column layer
+                    rememberColumnCartesianLayer(
+                        columnProvider = ColumnCartesianLayer.ColumnProvider.series(
+                            rememberLineComponent(fill = fill(Color(barColor)), thickness = 14.dp)
+                        )
+                    ),
+                    // line layer
+                    rememberLineCartesianLayer(
+                        LineCartesianLayer.LineProvider.series(
+                            LineCartesianLayer.Line(
+                                LineCartesianLayer.LineFill.single(fill(Color(lineColor)))
+                            )
+                        )
+                    ),
+                    startAxis = VerticalAxis.rememberStart(),
+                    bottomAxis = HorizontalAxis.rememberBottom(),
+                    legend = rememberHorizontalLegend(
+                        items = { extraStore ->
+                            extraStore[HistoryLegendKey].forEachIndexed { i, label ->
+                                add(
+                                    LegendItem(
+                                        shapeComponent(
+                                            fill(if (i == 0) Color(barColor) else Color(lineColor)),
+                                            CorneredShape.Pill
+                                        ),
+                                        textComponent,
+                                        label
+                                    )
+                                )
+                            }
+                        }
+                    )
+                ),
+                modelProducer = modelProducer,
+                modifier      = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+            )
+        }
     }
 }
-
 
 @Composable
 fun HistoricalExerciseCard(
