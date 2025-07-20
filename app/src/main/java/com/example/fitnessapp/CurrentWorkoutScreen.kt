@@ -1,7 +1,6 @@
 package com.example.fitnessapp
 
 import android.content.res.Configuration
-import android.util.Log
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,7 +19,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.outlined.FitnessCenter
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -30,13 +31,14 @@ import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,17 +49,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.DrawModifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.example.fitnessapp.data.SetEntry
 import com.example.fitnessapp.data.SetGroup
 import com.example.fitnessapp.navigation.Screens
 import com.example.fitnessapp.ui.theme.FitnessappTheme
 import com.example.fitnessapp.viewmodel.CurrentWorkoutViewModel
-import kotlinx.coroutines.flow.map
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -311,54 +310,70 @@ fun Exercise(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WorkoutTopAppBar() {
+fun WorkoutTopAppBar(
+    selectedGym: String = "Gym 1",
+    onGymSelected: (String) -> Unit = {},
+    onCompleteWorkout: () -> Unit = {}
+) {
     var expanded by remember { mutableStateOf(false) }
-    var selectedGym by remember { mutableStateOf("Gym 1") }
     val gymOptions = listOf("Gym 1", "Gym 2", "Gym 3", "Gym 4")
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
 
-    MediumTopAppBar(
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-        ),
-        title = {Text(
-            text = "Monday Workout",
-            style = MaterialTheme.typography.headlineMedium
-        )},
-        actions = {
-            Box(
-                modifier = Modifier
-                    .padding(end = 12.dp)
+    TopAppBar(
+        title = {
+            Column {
+                Text(
+                    text = "Current Workout",
+                    style = MaterialTheme.typography.headlineSmall
+                )
+                Text(
+                    text = "$selectedGym",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                ) // material 3 doesn't have a subtitle parameter yet in the non-expressive release
+            }
+        },
+        navigationIcon = {
+            IconButton(onClick = { expanded = true }) {
+                Icon(Icons.Default.Menu, contentDescription = "Select Gym")
+            }
+
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
             ) {
-                Button(
-                    onClick = { expanded = true },
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Text(text = selectedGym)
-                    Icon(
-                        imageVector = Icons.Default.ArrowDropDown,
-                        contentDescription = "Select Gym"
+                gymOptions.forEach { gym ->
+                    DropdownMenuItem(
+                        text = { Text(gym) },
+                        onClick = {
+                            onGymSelected(gym)
+                            expanded = false
+                        }
                     )
                 }
-
-                DropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
-                    gymOptions.forEach { gym ->
-                        DropdownMenuItem(
-                            text = { Text(gym) },
-                            onClick = {
-                                selectedGym = gym
-                                expanded = false
-                            }
-                        )
-                    }
-                }
             }
-        }
+        },
+        actions = {
+            IconButton(onClick = onCompleteWorkout) {
+                Icon(Icons.Default.Check, contentDescription = "Complete Workout")
+            }
+        },
+        scrollBehavior = scrollBehavior,
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            actionIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+        )
     )
 }
+
+
+
+
+
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -504,7 +519,7 @@ fun Preview_CurrentWorkoutScreenContent() {
     }
 }
 
-// 2) Previews must also be zero-arg and call the above wrapper
+
 @Preview(
     name = "Light Mode Preview",
     uiMode = Configuration.UI_MODE_NIGHT_NO,
