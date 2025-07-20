@@ -65,7 +65,8 @@ fun CurrentWorkoutScreen(
     modifier: Modifier = Modifier,
     viewModel: CurrentWorkoutViewModel = koinViewModel()
 ) {
-    val setGroups = viewModel.setGroups.collectAsState().value
+    val setGroups       by viewModel.setGroups.collectAsState()
+    val currentWorkout by viewModel.currentWorkout.collectAsState()
 
     val selectedExerciseId = navController.currentBackStackEntry
         ?.savedStateHandle
@@ -73,39 +74,50 @@ fun CurrentWorkoutScreen(
         ?.collectAsState()
         ?.value
 
-    val currentWorkout by viewModel.currentWorkout.collectAsState()
+    // if there is no workout, give the option to start a new workout
+    if (currentWorkout == null) {
+        Box(
+            modifier = modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            ElevatedButton(onClick = { viewModel.startNewWorkout() }) {
+                Text("Start Workout")
+            }
+        }
+        return
+    }
 
-    LaunchedEffect(selectedExerciseId, currentWorkout) {
-        if (selectedExerciseId != null && currentWorkout != null) {
-            viewModel.addExerciseById(selectedExerciseId)
+    // in progress workout
+    LaunchedEffect(selectedExerciseId) {
+        val id = selectedExerciseId
+        if (id != null) {
+            viewModel.addExerciseById(id)
             navController.currentBackStackEntry
                 ?.savedStateHandle
                 ?.set("selectedExerciseId", null)
         }
     }
 
+    // render current workout screen content
     CurrentWorkoutScreenContent(
-        exercises = setGroups.map { it.exerciseName to it.entries.map { e -> e.weight.toString() to e.reps.toString() } },
-        setGroups = setGroups,
-        onExerciseWeightChange = viewModel::updateSetWeight,
-        onExerciseRepsChange = viewModel::updateSetReps,
-        onAddSetToExercise = viewModel::addSetToExercise,
-        onRemoveSetFromExercise = { index ->
-            val group = setGroups.getOrNull(index)
-            if (group != null && group.entries.isNotEmpty()) {
-                viewModel.removeSetFromExercise(index, group.entries.lastIndex)
+        exercises               = setGroups.map {
+            it.exerciseName to it.entries.map { e ->
+                e.weight.toString() to e.reps.toString()
             }
         },
-        onAddExercise = {
-            navController.navigate(Screens.ExerciseListSelectionScreen.route)
+        setGroups               = setGroups,
+        onExerciseWeightChange  = viewModel::updateSetWeight,
+        onExerciseRepsChange    = viewModel::updateSetReps,
+        onAddSetToExercise      = viewModel::addSetToExercise,
+        onRemoveSetFromExercise = { idx ->
+            val group = setGroups.getOrNull(idx) ?: return@CurrentWorkoutScreenContent
+            viewModel.removeSetFromExercise(idx, group.entries.lastIndex)
         },
-        onRemoveExercise = viewModel::removeExercise,
-        onNavigateToStats = { exerciseId ->
-            navController.navigate(
-                Screens.ExerciseStatsScreen.createRoute(exerciseId)
-            )
-        },
-        modifier = modifier
+        onAddExercise           = {navController.navigate(Screens.ExerciseListSelectionScreen.route)},
+        onRemoveExercise        = viewModel::removeExercise,
+        onNavigateToStats       = { id ->navController.navigate(Screens.ExerciseStatsScreen.createRoute(id))},
+        onCompleteWorkout       = viewModel::finishCurrentWorkout,
+        modifier                = modifier
     )
 }
 
@@ -121,10 +133,17 @@ fun CurrentWorkoutScreenContent(
     onAddExercise: () -> Unit,
     onRemoveExercise: (Int) -> Unit,
     onNavigateToStats: (Long) -> Unit,
+    onCompleteWorkout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
-        topBar    = { WorkoutTopAppBar() },
+        topBar = {
+            WorkoutTopAppBar(
+                selectedGym = "Help",
+                onGymSelected = {},
+                onCompleteWorkout = onCompleteWorkout
+            )
+        },
         bottomBar = { BottomNavigationBar() }
     ) { paddingValues: PaddingValues ->
         CurrentWorkout(
@@ -514,6 +533,7 @@ fun Preview_CurrentWorkoutScreenContent() {
             onRemoveSetFromExercise = { _ -> },
             onAddExercise           = {},
             onRemoveExercise        = { _ -> },
+            onCompleteWorkout       = {},
             onNavigateToStats       = {}
         )
     }
