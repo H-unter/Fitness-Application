@@ -5,13 +5,18 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 
 @Database(
-    entities = [WorkoutEntity::class, ExerciseEntity::class, SetGroupEntity::class],
-    version = 2,
+    entities = [
+        WorkoutEntity::class,
+        ExerciseEntity::class,
+        SetGroupEntity::class,
+        SetEntryEntity::class,],
+    version = 3,
     exportSchema = false
 )
-@TypeConverters(SetTypeConverters::class, WeightUnitTypeConverters::class)
+@TypeConverters(WeightUnitTypeConverters::class)
 abstract class GymActivityDatabase : RoomDatabase() {
     abstract fun workoutDao(): WorkoutDao
     abstract fun exerciseDao(): ExerciseDao
     abstract fun setGroupDao(): SetGroupDao
+    abstract fun setEntryDao(): SetEntryDao
 }

@@ -7,7 +7,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "Workout")
 data class WorkoutEntity(
     @PrimaryKey(autoGenerate = true) val workoutId: Int,
-    val gymId: Int, // future foreign key
+    val gymId: Int, // future 1:M relationship to be modelled
     val startTime: Long,
     val endTime: Long,
     val isInProgress: Boolean,

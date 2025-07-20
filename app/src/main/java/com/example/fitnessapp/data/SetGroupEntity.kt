@@ -6,9 +6,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "SetGroup")
 data class SetGroupEntity(
     @PrimaryKey(autoGenerate = true) val setGroupId: Int,
-    val workoutId: Int,
-    val exerciseId: Int,
-    val name: String, // takes on the name of the exercise
-    val weightUnit: WeightUnit,
-    val sets: List<SetItem>
+    val exerciseId: Int, // foreign key to ExerciseEntity
+    val workoutId: Int, // foreign key to WorkoutEntity
+    val weightUnit: WeightUnit
 )

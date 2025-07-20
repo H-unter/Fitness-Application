@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -12,6 +13,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.fitnessapp.ui.theme.FitnessappTheme
 import com.example.fitnessapp.viewmodel.ExerciseHistoryViewModel
+import com.example.fitnessapp.viewmodel.ExerciseHistoryScreenState
+import com.example.fitnessapp.viewmodel.SetGroupDisplayData
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -19,12 +22,11 @@ fun ExerciseHistoryScreen(
     modifier: Modifier = Modifier,
     viewModel: ExerciseHistoryViewModel = koinViewModel()
 ) {
-    val exerciseName = viewModel.exerciseName
-    val history = viewModel.exerciseHistory.collectAsStateWithLifecycle()
+    val state by viewModel.screenState.collectAsStateWithLifecycle()
 
     ExerciseHistoryScreenContent(
-        exerciseName = exerciseName,
-        history = history.value,
+        exerciseName = state.exerciseName,
+        history = state.history,
         modifier = modifier
     )
 }
@@ -32,7 +34,7 @@ fun ExerciseHistoryScreen(
 @Composable
 fun ExerciseHistoryScreenContent(
     exerciseName: String,
-    history: List<Triple<String, List<Pair<String, String>>, Int>>,
+    history: List<SetGroupDisplayData>,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -75,15 +77,15 @@ fun ExerciseHistoryPlot(modifier: Modifier = Modifier) {
 
 @Composable
 fun ExerciseHistory(
-    history: List<Triple<String, List<Pair<String, String>>, Int>>,
+    history: List<SetGroupDisplayData>,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
-        history.forEach { (date, sets, rpe) ->
+        history.forEach { group ->
             HistoricalExerciseCard(
-                date = date,
-                sets = sets,
-                rpe = rpe
+                date = group.label,
+                sets = group.sets,
+                rpe = group.rpe
             )
         }
         Spacer(modifier = Modifier.height(80.dp))
@@ -184,28 +186,20 @@ fun Preview_ExerciseHistoryScreenContent() {
         ExerciseHistoryScreenContent(
             exerciseName = "Bench Press",
             history = listOf(
-                Triple("Yesterday", listOf("50" to "8", "55" to "6"), 8),
-                Triple("2 Days Ago", listOf("60" to "5", "62.5" to "5", "65" to "4"), 7)
+                SetGroupDisplayData("Yesterday", listOf("50" to "8", "55" to "6")),
+                SetGroupDisplayData("2 Days Ago", listOf("60" to "5", "62.5" to "5", "65" to "4"), rpe = 7)
             )
         )
     }
 }
 
-@Preview(
-    name = "Light Mode",
-    uiMode = Configuration.UI_MODE_NIGHT_NO,
-    showBackground = true
-)
+@Preview(name = "Light Mode", uiMode = Configuration.UI_MODE_NIGHT_NO, showBackground = true)
 @Composable
 fun Preview_ExerciseHistoryScreenContent_Light() {
     Preview_ExerciseHistoryScreenContent()
 }
 
-@Preview(
-    name = "Dark Mode",
-    uiMode = Configuration.UI_MODE_NIGHT_YES,
-    showBackground = true
-)
+@Preview(name = "Dark Mode", uiMode = Configuration.UI_MODE_NIGHT_YES, showBackground = true)
 @Composable
 fun Preview_ExerciseHistoryScreenContent_Dark() {
     Preview_ExerciseHistoryScreenContent()

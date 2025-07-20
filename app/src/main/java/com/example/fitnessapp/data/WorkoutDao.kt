@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -24,4 +25,9 @@ interface WorkoutDao{
 
     @Query("UPDATE Workout SET isInProgress = 1 WHERE workoutId = :id")
     suspend fun markInProgress(id: Int)
+
+    // return all set groups given a workoutId
+    @Transaction
+    @Query("SELECT * FROM Workout WHERE workoutId = :id")
+    fun getWorkoutWithSetGroupsAndEntries(id: Int): Flow<WorkoutWithSetGroupsAndEntries>
 }

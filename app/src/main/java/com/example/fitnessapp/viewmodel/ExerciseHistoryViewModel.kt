@@ -4,35 +4,50 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.fitnessapp.data.ExerciseRepository
-import com.example.fitnessapp.data.SetGroup
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
-class ExerciseHistoryViewModel (
+data class SetGroupDisplayData(
+    val label: String,
+    val sets: List<Pair<String, String>>,
+    val rpe: Int = 8 // Default value; replace or compute as needed
+)
+
+data class ExerciseHistoryScreenState(
+    val exerciseName: String = "",
+    val history: List<SetGroupDisplayData> = emptyList()
+)
+
+class ExerciseHistoryViewModel(
     private val exerciseRepository: ExerciseRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val exerciseId: Long = savedStateHandle.get<Long>("exerciseId") ?: 0L
+    private val exerciseId: Long = savedStateHandle["exerciseId"] ?: 0L
 
-    val exerciseName: String = savedStateHandle.get<String>("exerciseName") ?: ""
-
-    val exerciseHistory: StateFlow<List<Triple<String, List<Pair<String, String>>, Int>>> =
-        exerciseRepository
-            .getExerciseActivityById(exerciseId)
+    private val _screenState: StateFlow<ExerciseHistoryScreenState> =
+        exerciseRepository.getExerciseActivityById(exerciseId)
             .map { setGroups ->
-                setGroups.map { setGroup ->
-                    val label = setGroup.name // using name as a placeholder for date
-                    val sets = setGroup.sets.map { it.weight.toString() to it.reps.toString() }
-                    Triple(label, sets, 8) // TODO: make rpe not hardcoded
+                val history = setGroups.map { setGroup ->
+                    SetGroupDisplayData(
+                        label = setGroup.name,
+                        sets = setGroup.entries.map { it.weight.toString() to it.reps.toString() }
+                    )
                 }
+                val exerciseName = setGroups.firstOrNull()?.exerciseName ?: "Unknown"
+                ExerciseHistoryScreenState(
+                    exerciseName = exerciseName,
+                    history = history
+                )
             }
             .stateIn(
                 scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = emptyList()
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = ExerciseHistoryScreenState()
             )
-}
 
+    val screenState: StateFlow<ExerciseHistoryScreenState> get() = _screenState
+}

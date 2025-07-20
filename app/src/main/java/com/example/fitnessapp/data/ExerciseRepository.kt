@@ -6,7 +6,7 @@ interface ExerciseRepository {
     fun getAllExercises(): Flow<List<Exercise>>
 
     // insert a type of exercises into the exercise table
-    suspend fun insertExercise(name: String)
+    suspend fun insertExercise(name: String): Int
 
     // return an exercise type by its id
     suspend fun getExerciseById(id: Long): Exercise?

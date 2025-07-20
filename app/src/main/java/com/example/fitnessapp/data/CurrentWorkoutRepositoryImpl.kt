@@ -2,111 +2,98 @@ package com.example.fitnessapp.data
 
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class CurrentWorkoutRepositoryImpl(
     private val workoutDao: WorkoutDao,
+    private val exerciseDao: ExerciseDao,
     private val setGroupDao: SetGroupDao,
+    private val setEntryDao: SetEntryDao,
     private val dispatcher: CoroutineDispatcher,
     private val scope: CoroutineScope
 ) : CurrentWorkoutRepository {
-
 
     private val _currentWorkout = MutableStateFlow<WorkoutEntity?>(null)
     override val currentWorkout: StateFlow<WorkoutEntity?> = _currentWorkout
 
     init {
-        // collect the data access objects
         scope.launch {
-            workoutDao.getCurrentWorkout()
-                .collect { workoutEntity ->
-                    _currentWorkout.value = workoutEntity
-                }
+            workoutDao.getCurrentWorkout().collect { workoutEntity ->
+                _currentWorkout.value = workoutEntity
+            }
         }
     }
 
-    // start a new workout, returning the new rowId
     override suspend fun startNewWorkout(gymId: Int): Long = withContext(dispatcher) {
-        val startTimestamp = System.currentTimeMillis()
+        val now = System.currentTimeMillis()
         workoutDao.insertWorkout(
             WorkoutEntity(
-                workoutId    = 0,
-                gymId        = gymId,
-                startTime    = startTimestamp,
-                endTime      = startTimestamp,
+                workoutId = 0,
+                gymId = gymId,
+                startTime = now,
+                endTime = now,
                 isInProgress = true
             )
         )
     }
 
-    // finish the current workout
     override suspend fun finishCurrentWorkout() {
         withContext(dispatcher) {
-            _currentWorkout.value
-                ?.let { current -> workoutDao.markFinished(current.workoutId) }
+            _currentWorkout.value?.let { workoutEntity ->
+                workoutDao.markFinished(workoutEntity.workoutId)
+            }
         }
     }
 
-    // get the full workout
-    @kotlinx.coroutines.ExperimentalCoroutinesApi
-    override fun getCurrentWorkout(): Flow<Workout> =
-        workoutDao.getCurrentWorkout()
-            .filterNotNull()
-            .flatMapLatest { workoutEntity ->
-                setGroupDao.getWorkoutSetGroups(workoutEntity.workoutId)
-                    .map { setGroupEntities ->
-                        Workout(
-                            id         = workoutEntity.workoutId,
-                            locationId = workoutEntity.gymId,
-                            startTime  = workoutEntity.startTime,
-                            endTime    = workoutEntity.endTime,
-                            setGroups  = setGroupEntities.map { setGroupEntity ->
-                                SetGroup(
-                                    id         = setGroupEntity.setGroupId,
-                                    workoutId  = setGroupEntity.workoutId,
-                                    name       = setGroupEntity.name,
-                                    weightUnit = setGroupEntity.weightUnit,
-                                    sets       = setGroupEntity.sets
-                                )
-                            }
-                        )
-                    }
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override fun getCurrentWorkoutOrNull(): Flow<Workout?> =
+        workoutDao
+            .getCurrentWorkout()
+            .flatMapLatest { entity ->
+                if (entity == null) {
+                    flowOf(null)
+                } else {
+                    workoutDao
+                        .getWorkoutWithSetGroupsAndEntries(entity.workoutId)
+                        .map { it.toDomain() }
+                }
             }
 
-    // return list of SetGroups
+
     override fun getSetGroups(): Flow<List<SetGroup>> =
-        workoutDao.getCurrentWorkout()
-            .filterNotNull()
-            .flatMapLatest { workoutEntity ->
-                setGroupDao.getWorkoutSetGroups(workoutEntity.workoutId)
-                    .map { setGroupEntities ->
-                        setGroupEntities.map { setGroupEntity ->
-                            SetGroup(
-                                id         = setGroupEntity.setGroupId,
-                                workoutId  = setGroupEntity.workoutId,
-                                name       = setGroupEntity.name,
-                                weightUnit = setGroupEntity.weightUnit,
-                                sets       = setGroupEntity.sets
-                            )
-                        }
-                    }
-            }
+        getCurrentWorkoutOrNull()
+            .map { workout -> workout?.setGroups ?: emptyList() }
 
-    // add or remove an exercise (i.e. a SetGroup)
     override suspend fun addExercise(setGroup: SetGroup) {
         withContext(dispatcher) {
-            setGroupDao.insertSetGroup(
-                SetGroupEntity(
-                    setGroupId = setGroup.id,
-                    workoutId  = setGroup.workoutId,
-                    exerciseId = 0,  /* TODO: implement some kind of enumeration, or perhaps something linked to its exercise id (future foreign key */
-                    name = setGroup.name,
-                    weightUnit = setGroup.weightUnit,
-                    sets       = setGroup.sets
-                )
+            val currentWorkout = _currentWorkout.value ?: return@withContext
+
+            val exercise = setGroup.exerciseName.trim()
+            val matchingExercise = exerciseDao.getExerciseByName(exercise)
+            val newSetGroup = SetGroupEntity(
+                setGroupId = 0,
+                workoutId = currentWorkout.workoutId,
+                exerciseId = matchingExercise.exerciseId,
+                weightUnit = setGroup.weightUnit
             )
+            val setGroupId = setGroupDao.insertSetGroup(newSetGroup).toInt()
+
+            setGroup.entries.forEachIndexed { index, setItem ->
+                setEntryDao.insertSetEntry(
+                    SetEntryEntity(
+                        setGroupId = setGroupId,
+                        setIndex = index,
+                        weight = setItem.weight,
+                        reps = setItem.reps
+                    )
+                )
+            }
         }
     }
 
@@ -114,31 +101,22 @@ class CurrentWorkoutRepositoryImpl(
 
     override suspend fun removeExercise(setGroup: SetGroup) {
         withContext(dispatcher) {
-            setGroupDao.deleteSetGroupById(setGroup.id)
+            setGroupDao.deleteSetGroupById(setGroup.setGroupId)
         }
     }
 
     override suspend fun addSetToExercise(exerciseIndex: Int) {
         withContext(dispatcher) {
-            val currentWorkoutEntity = _currentWorkout.value ?: return@withContext
-            val setGroupEntities = setGroupDao
-                .getWorkoutSetGroups(currentWorkoutEntity.workoutId)
-                .first()
-            val targetGroup = setGroupEntities[exerciseIndex]
-
-            // Append a default SetItem
-            val updatedSets = targetGroup.sets.toMutableList().apply {
-                add(SetItem(weight = "0", reps = "0"))
-            }
-
-            setGroupDao.updateSetGroup(
-                SetGroupEntity(
-                    setGroupId = targetGroup.setGroupId,
-                    workoutId  = targetGroup.workoutId,
-                    exerciseId = targetGroup.exerciseId,
-                    name = targetGroup.name,
-                    weightUnit = targetGroup.weightUnit,
-                    sets       = updatedSets
+            val currentWorkout = _currentWorkout.value ?: return@withContext
+            val workoutWithGroups = workoutDao.getWorkoutWithSetGroupsAndEntries(currentWorkout.workoutId).first()
+            val targetSetGroup = workoutWithGroups.setGroups.getOrNull(exerciseIndex) ?: return@withContext
+            val nextSetIndex = (targetSetGroup.entries.maxOfOrNull { it.setIndex } ?: -1) + 1
+            setEntryDao.insertSetEntry(
+                SetEntryEntity(
+                    setGroupId = targetSetGroup.group.setGroupId,
+                    setIndex = nextSetIndex,
+                    weight = 0f,
+                    reps = 0
                 )
             )
         }
@@ -146,87 +124,52 @@ class CurrentWorkoutRepositoryImpl(
 
     override suspend fun removeSetFromExercise(exerciseIndex: Int, setIndex: Int) {
         withContext(dispatcher) {
-            val currentWorkoutEntity = _currentWorkout.value ?: return@withContext
-            val setGroupEntities = setGroupDao
-                .getWorkoutSetGroups(currentWorkoutEntity.workoutId)
-                .first()
-            val targetGroup = setGroupEntities[exerciseIndex]
-
-            val updatedSets = targetGroup.sets.toMutableList().apply {
-                if (setIndex in indices) removeAt(setIndex)
-            }
-
-            setGroupDao.updateSetGroup(
-                SetGroupEntity(
-                    setGroupId = targetGroup.setGroupId,
-                    workoutId  = targetGroup.workoutId,
-                    exerciseId = targetGroup.exerciseId,
-                    name = targetGroup.name,
-                    weightUnit = targetGroup.weightUnit,
-                    sets       = updatedSets
-                )
-            )
+            val currentWorkout = _currentWorkout.value ?: return@withContext
+            val workoutWithGroups = workoutDao.getWorkoutWithSetGroupsAndEntries(currentWorkout.workoutId).first()
+            val targetSetGroup = workoutWithGroups.setGroups.getOrNull(exerciseIndex) ?: return@withContext
+            val targetSetEntry = targetSetGroup.entries.find { it.setIndex == setIndex } ?: return@withContext
+            setEntryDao.deleteSetEntryById(targetSetEntry.setEntryId)
         }
     }
 
-    // update a single SetItem weight by rewriting its SetGroupEntity
-    override suspend fun updateSetWeight(
-        exerciseIndex: Int,
-        setIndex: Int,
-        weight: String
-    ) {
+    override suspend fun updateSetWeight(exerciseIndex: Int, setIndex: Int, weight: String) {
         withContext(dispatcher) {
-            val currentWorkoutEntity = _currentWorkout.value ?: return@withContext
-            val setGroupEntities = setGroupDao
-                .getWorkoutSetGroups(currentWorkoutEntity.workoutId)
-                .first()
-            val targetGroup = setGroupEntities[exerciseIndex]
-
-            // create updated list of SetItems
-            val updatedSets = targetGroup.sets.toMutableList().apply {
-                this[setIndex] = this[setIndex].copy(weight = weight)
-            }
-
-            setGroupDao.updateSetGroup(
-                SetGroupEntity(
-                    setGroupId = targetGroup.setGroupId,
-                    workoutId  = targetGroup.workoutId,
-                    exerciseId = targetGroup.exerciseId,
-                    name = targetGroup.name,
-                    weightUnit = targetGroup.weightUnit,
-                    sets       = updatedSets
-                )
-            )
+            val currentWorkout = _currentWorkout.value ?: return@withContext
+            val workoutWithGroups = workoutDao.getWorkoutWithSetGroupsAndEntries(currentWorkout.workoutId).first()
+            val targetSetGroup = workoutWithGroups.setGroups.getOrNull(exerciseIndex) ?: return@withContext
+            val targetSetEntry = targetSetGroup.entries.find { it.setIndex == setIndex } ?: return@withContext
+            setEntryDao.updateSetEntry(targetSetEntry.copy(weight = weight.toFloatOrNull() ?: 0f))
         }
     }
 
-    // update a single SetItem reps by rewriting its SetGroupEntity
-    override suspend fun updateSetReps(
-        exerciseIndex: Int,
-        setIndex: Int,
-        reps: String
-    ) {
+    override suspend fun updateSetReps(exerciseIndex: Int, setIndex: Int, reps: String) {
         withContext(dispatcher) {
-            val currentWorkoutEntity = _currentWorkout.value ?: return@withContext
-            val setGroupEntities = setGroupDao
-                .getWorkoutSetGroups(currentWorkoutEntity.workoutId)
-                .first()
-            val targetGroup = setGroupEntities[exerciseIndex]
-
-            val updatedSets = targetGroup.sets.toMutableList().apply {
-                this[setIndex] = this[setIndex].copy(reps = reps)
-            }
-
-            setGroupDao.updateSetGroup(
-                SetGroupEntity(
-                    setGroupId = targetGroup.setGroupId,
-                    workoutId  = targetGroup.workoutId,
-                    exerciseId = targetGroup.exerciseId,
-                    name = targetGroup.name,
-                    weightUnit = targetGroup.weightUnit,
-                    sets       = updatedSets
-                )
-            )
+            val currentWorkout = _currentWorkout.value ?: return@withContext
+            val workoutWithGroups = workoutDao.getWorkoutWithSetGroupsAndEntries(currentWorkout.workoutId).first()
+            val targetSetGroup = workoutWithGroups.setGroups.getOrNull(exerciseIndex) ?: return@withContext
+            val targetSetEntry = targetSetGroup.entries.find { it.setIndex == setIndex } ?: return@withContext
+            setEntryDao.updateSetEntry(targetSetEntry.copy(reps = reps.toIntOrNull() ?: 0))
         }
     }
 }
+
+fun SetGroupWithEntries.toDomain(): SetGroup {
+    return SetGroup(
+        setGroupId = group.setGroupId,
+        workoutId = group.workoutId,
+        name = exercise?.name ?: "[Unknown Exercise]",
+        weightUnit = group.weightUnit,
+        exerciseName = exercise?.name ?: "[Unknown Exercise]",
+        exerciseId = exercise?.exerciseId ?: 0,
+        entries = entries
+    )
+}
+
+fun WorkoutWithSetGroupsAndEntries.toDomain(): Workout =
+    Workout(
+        id         = workout.workoutId,
+        locationId = workout.gymId,
+        startTime  = workout.startTime,
+        endTime    = workout.endTime,
+        setGroups  = setGroups.map { it.toDomain() }
+    )

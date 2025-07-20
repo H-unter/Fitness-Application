@@ -3,7 +3,7 @@ package com.example.fitnessapp.data
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class SetItem (
+data class SetEntry (
     val weight: String,
     val reps: String
 )

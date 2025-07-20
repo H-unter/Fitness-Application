@@ -4,14 +4,14 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.fitnessapp.data.CurrentWorkoutRepository
-import com.example.fitnessapp.data.Exercise
 import com.example.fitnessapp.data.ExerciseRepository
 import com.example.fitnessapp.data.SetGroup
-import com.example.fitnessapp.data.SetItem
+import com.example.fitnessapp.data.SetEntryEntity
 import com.example.fitnessapp.data.WeightUnit
 import com.example.fitnessapp.data.Workout
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -22,14 +22,12 @@ class CurrentWorkoutViewModel(
 
     // the current workout (or null if none started)
     val currentWorkout: StateFlow<Workout?> =
-        workoutRepository
-            .getCurrentWorkout()
+        workoutRepository.getCurrentWorkoutOrNull()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     // the list of exercises (setGroups) in that workout
     val setGroups: StateFlow<List<SetGroup>> =
-        workoutRepository
-            .getSetGroups()
+        workoutRepository.getSetGroups()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     // kick off a brand new workout; returns the new rowId under the hood
@@ -42,17 +40,40 @@ class CurrentWorkoutViewModel(
         workoutRepository.finishCurrentWorkout()
     }
 
+    val exerciseUiList: StateFlow<List<Pair<String, List<Pair<String, String>>>>> =
+        setGroups
+            .map { groups ->
+                groups.map { group ->
+                    group.exerciseName to group.entries.map { it.weight.toString() to it.reps.toString() }
+                }
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyList()
+            )
+
     // add an exercise (setGroup) by its id
     fun addExerciseById(exerciseId: Long) = viewModelScope.launch {
-        val picked = exerciseRepository.getExerciseById(exerciseId) ?: return@launch
-        Log.d("CurrentWorkoutViewModel", "picked = $picked, exerciseId = $exerciseId, name = ${picked.name}")
+
+        val selectedExercise = exerciseRepository.getExerciseById(exerciseId) ?: return@launch
+        Log.d("CurrentWorkoutViewModel", "selectedExercise = $selectedExercise, exerciseId = $exerciseId, name = ${selectedExercise.name}")
         val workout = currentWorkout.value ?: return@launch
         val newSetGroup = SetGroup(
-            id         = 0,
-            workoutId  = workout.id,
-            name       = picked.name,
+            setGroupId = 0,
+            workoutId = workout.id,
+            exerciseId = exerciseId.toInt(),
+            name = selectedExercise.name,
             weightUnit = WeightUnit.KG,
-            sets       = listOf(SetItem(weight = "0", reps = "0"))
+            exerciseName = selectedExercise.name,
+            entries = listOf(
+                SetEntryEntity(
+                    setGroupId = 0, // auto generated primary key
+                    setIndex = 0,
+                    weight = 0f,
+                    reps = 0
+                )
+            )
         )
         workoutRepository.addExercise(newSetGroup)
     }

@@ -1,6 +1,6 @@
 package com.example.fitnessapp.data
 
 data class Exercise(
-    val id: Long,
+    val exerciseId: Long,
     val name: String
 )

@@ -1,5 +1,6 @@
 package com.example.fitnessapp.di
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.room.Room
 import com.example.fitnessapp.data.CurrentWorkoutRepository
 import com.example.fitnessapp.data.CurrentWorkoutRepositoryImpl
@@ -18,6 +19,11 @@ import kotlinx.coroutines.Dispatchers
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
+import androidx.room.RoomDatabase
+import androidx.sqlite.db.SupportSQLiteDatabase
+import com.example.fitnessapp.data.SetEntryDao
+
+// https://developer.android.com/training/data-storage/room/prepopulate
 
 val appModule = module {
     // room database
@@ -27,14 +33,15 @@ val appModule = module {
             GymActivityDatabase::class.java,
             "gym-activity-database"
         )
-        .fallbackToDestructiveMigration() // TODO: remove this when the database stops being in flux
-        .build()
+            .fallbackToDestructiveMigration()
+            .build()
     }
 
     // data access objects
-    single<WorkoutDao>   { get<GymActivityDatabase>().workoutDao() }
-    single<SetGroupDao>  { get<GymActivityDatabase>().setGroupDao() }
-    single<ExerciseDao>  { get<GymActivityDatabase>().exerciseDao() }      // ← added
+    single<WorkoutDao>  { get<GymActivityDatabase>().workoutDao() }
+    single<SetGroupDao> { get<GymActivityDatabase>().setGroupDao() }
+    single<SetEntryDao> { get<GymActivityDatabase>().setEntryDao() }
+    single<ExerciseDao> { get<GymActivityDatabase>().exerciseDao() }
 
     // coroutine
     single<CoroutineDispatcher> { Dispatchers.IO }
@@ -45,6 +52,8 @@ val appModule = module {
         CurrentWorkoutRepositoryImpl(
             workoutDao   = get(),
             setGroupDao  = get(),
+            setEntryDao  = get(),
+            exerciseDao  = get(),
             dispatcher   = get(),
             scope        = get()
         )
@@ -57,8 +66,10 @@ val appModule = module {
         )
     }
 
+    // viewmodels
     viewModel { ExerciseListSelectionViewModel(exerciseRepository = get()) }
-    viewModel { CurrentWorkoutViewModel(workoutRepository = get(), exerciseRepository  = get()) }
+    viewModel { CurrentWorkoutViewModel(workoutRepository = get(), exerciseRepository = get()) }
     viewModel { ExerciseHistoryViewModel(exerciseRepository = get(), savedStateHandle = get()) }
-
 }
+
+
