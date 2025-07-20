@@ -22,14 +22,12 @@ class CurrentWorkoutViewModel(
 
     // the current workout (or null if none started)
     val currentWorkout: StateFlow<Workout?> =
-        workoutRepository
-            .getCurrentWorkout()
+        workoutRepository.getCurrentWorkoutOrNull()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     // the list of exercises (setGroups) in that workout
     val setGroups: StateFlow<List<SetGroup>> =
-        workoutRepository
-            .getSetGroups()
+        workoutRepository.getSetGroups()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     // kick off a brand new workout; returns the new rowId under the hood

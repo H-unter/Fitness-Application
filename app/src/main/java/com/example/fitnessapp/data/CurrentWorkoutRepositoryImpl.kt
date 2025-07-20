@@ -2,7 +2,11 @@ package com.example.fitnessapp.data
 
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -47,26 +51,24 @@ class CurrentWorkoutRepositoryImpl(
         }
     }
 
-    override fun getCurrentWorkout(): Flow<Workout> =
-        workoutDao.getCurrentWorkout()
-            .filterNotNull()
-            .flatMapLatest { workoutEntity ->
-                workoutDao.getWorkoutWithSetGroupsAndEntries(workoutEntity.workoutId)
-                    .map { workoutWithGroups ->
-                        Workout(
-                            id = workoutWithGroups.workout.workoutId,
-                            locationId = workoutWithGroups.workout.gymId,
-                            startTime = workoutWithGroups.workout.startTime,
-                            endTime = workoutWithGroups.workout.endTime,
-                            setGroups = workoutWithGroups.setGroups.map { groupWithEntries ->
-                                groupWithEntries.toDomain()
-                            }
-                        )
-                    }
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override fun getCurrentWorkoutOrNull(): Flow<Workout?> =
+        workoutDao
+            .getCurrentWorkout()
+            .flatMapLatest { entity ->
+                if (entity == null) {
+                    flowOf(null)
+                } else {
+                    workoutDao
+                        .getWorkoutWithSetGroupsAndEntries(entity.workoutId)
+                        .map { it.toDomain() }
+                }
             }
 
+
     override fun getSetGroups(): Flow<List<SetGroup>> =
-        getCurrentWorkout().map { workout -> workout.setGroups }
+        getCurrentWorkoutOrNull()
+            .map { workout -> workout?.setGroups ?: emptyList() }
 
     override suspend fun addExercise(setGroup: SetGroup) {
         withContext(dispatcher) {
@@ -162,3 +164,12 @@ fun SetGroupWithEntries.toDomain(): SetGroup {
         entries = entries
     )
 }
+
+fun WorkoutWithSetGroupsAndEntries.toDomain(): Workout =
+    Workout(
+        id         = workout.workoutId,
+        locationId = workout.gymId,
+        startTime  = workout.startTime,
+        endTime    = workout.endTime,
+        setGroups  = setGroups.map { it.toDomain() }
+    )
