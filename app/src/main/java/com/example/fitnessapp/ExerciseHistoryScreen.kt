@@ -3,30 +3,34 @@ package com.example.fitnessapp
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavHostController
 import com.example.fitnessapp.ui.theme.FitnessappTheme
 import com.example.fitnessapp.viewmodel.ExerciseHistoryViewModel
-import com.example.fitnessapp.viewmodel.ExerciseHistoryScreenState
 import com.example.fitnessapp.viewmodel.SetGroupDisplayData
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun ExerciseHistoryScreen(
-    modifier: Modifier = Modifier,
-    viewModel: ExerciseHistoryViewModel = koinViewModel()
+    navController: NavHostController,
+    viewModel: ExerciseHistoryViewModel = koinViewModel(),
+    modifier: Modifier = Modifier
 ) {
     val state by viewModel.screenState.collectAsStateWithLifecycle()
-
     ExerciseHistoryScreenContent(
         exerciseName = state.exerciseName,
         history = state.history,
+        onBack = {navController.popBackStack()},
         modifier = modifier
     )
 }
@@ -35,9 +39,17 @@ fun ExerciseHistoryScreen(
 fun ExerciseHistoryScreenContent(
     exerciseName: String,
     history: List<SetGroupDisplayData>,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
+        topBar = {
+            ExerciseHistoryTopAppBar(
+                exerciseName = exerciseName,
+                onBack = onBack,
+                modifier = modifier
+            )
+        },
         bottomBar = { BottomNavigationBar() }
     ) { paddingValues ->
         Column(
@@ -53,15 +65,43 @@ fun ExerciseHistoryScreenContent(
                     .height(200.dp)
             )
 
-            Text(
-                text = "Exercise History: $exerciseName",
-                style = MaterialTheme.typography.headlineSmall
-            )
-
             ExerciseHistory(history = history)
         }
     }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ExerciseHistoryTopAppBar(
+    exerciseName: String,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    TopAppBar(
+        modifier = modifier,
+        title = {
+            Text(
+                text = "History: $exerciseName",
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        },
+        navigationIcon = {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back"
+                )
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor             = MaterialTheme.colorScheme.primaryContainer,
+            titleContentColor          = MaterialTheme.colorScheme.onPrimaryContainer,
+            navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+        )
+    )
+}
+
 
 @Composable
 fun ExerciseHistoryPlot(modifier: Modifier = Modifier) {
@@ -184,6 +224,7 @@ fun HistoricalSetRow(
 fun Preview_ExerciseHistoryScreenContent() {
     FitnessappTheme {
         ExerciseHistoryScreenContent(
+            onBack = {},
             exerciseName = "Bench Press",
             history = listOf(
                 SetGroupDisplayData("Yesterday", listOf("50" to "8", "55" to "6")),

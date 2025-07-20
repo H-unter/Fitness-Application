@@ -34,7 +34,9 @@ fun AppNavigation() {
             route = Screens.ExerciseStatsScreen.route,
             arguments = listOf(navArgument("exerciseId") { type = NavType.LongType })
         ) {
-            ExerciseHistoryScreen()
+            ExerciseHistoryScreen(
+                navController = navController
+            )
         }
 
     }
