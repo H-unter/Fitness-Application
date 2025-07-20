@@ -2,6 +2,8 @@ package com.example.fitnessapp
 
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -19,6 +21,7 @@ import com.example.fitnessapp.ui.theme.FitnessappTheme
 import com.example.fitnessapp.viewmodel.ExerciseHistoryViewModel
 import com.example.fitnessapp.viewmodel.SetGroupDisplayData
 import org.koin.androidx.compose.koinViewModel
+
 
 @Composable
 fun ExerciseHistoryScreen(
@@ -43,32 +46,52 @@ fun ExerciseHistoryScreenContent(
     modifier: Modifier = Modifier
 ) {
     Scaffold(
-        topBar = {
-            ExerciseHistoryTopAppBar(
-                exerciseName = exerciseName,
-                onBack = onBack,
-                modifier = modifier
-            )
-        },
+        topBar = { ExerciseHistoryTopAppBar(exerciseName, onBack) },
         bottomBar = { BottomNavigationBar() }
-    ) { paddingValues ->
-        Column(
+    ) { padding ->
+        ExerciseHistory(
+            history  = history,
             modifier = modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
+                .padding(padding)
+                .padding(horizontal = 16.dp)
+        )
+    }
+}
+
+
+@Composable
+fun ExerciseHistory(
+    history: List<SetGroupDisplayData>,
+    modifier: Modifier = Modifier
+) {
+    LazyColumn(
+        modifier = modifier
+            .fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(24.dp),
+        contentPadding = PaddingValues(bottom = 80.dp)
+    ) {
+        item {
             ExerciseHistoryPlot(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
             )
+        }
 
-            ExerciseHistory(history = history)
+        items(history) { group ->
+            HistoricalExerciseCard(
+                date = group.label,
+                sets = group.sets,
+                rpe  = group.rpe
+            )
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(80.dp))
         }
     }
 }
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -115,22 +138,6 @@ fun ExerciseHistoryPlot(modifier: Modifier = Modifier) {
     }
 }
 
-@Composable
-fun ExerciseHistory(
-    history: List<SetGroupDisplayData>,
-    modifier: Modifier = Modifier
-) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        history.forEach { group ->
-            HistoricalExerciseCard(
-                date = group.label,
-                sets = group.sets,
-                rpe = group.rpe
-            )
-        }
-        Spacer(modifier = Modifier.height(80.dp))
-    }
-}
 
 @Composable
 fun HistoricalExerciseCard(
