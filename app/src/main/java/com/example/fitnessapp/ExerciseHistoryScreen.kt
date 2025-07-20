@@ -4,6 +4,7 @@ import android.content.res.Configuration
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -21,6 +22,7 @@ import com.example.fitnessapp.ui.theme.FitnessappTheme
 import com.example.fitnessapp.viewmodel.ExerciseHistoryViewModel
 import com.example.fitnessapp.viewmodel.SetGroupDisplayData
 import org.koin.androidx.compose.koinViewModel
+import kotlin.Double
 
 
 @Composable
@@ -46,51 +48,42 @@ fun ExerciseHistoryScreenContent(
     modifier: Modifier = Modifier
 ) {
     Scaffold(
-        topBar = { ExerciseHistoryTopAppBar(exerciseName, onBack) },
+        topBar    = { ExerciseHistoryTopAppBar(exerciseName, onBack) },
         bottomBar = { BottomNavigationBar() }
     ) { padding ->
-        ExerciseHistory(
-            history  = history,
+        Column(
             modifier = modifier
+                .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 16.dp)
-        )
-    }
-}
-
-
-@Composable
-fun ExerciseHistory(
-    history: List<SetGroupDisplayData>,
-    modifier: Modifier = Modifier
-) {
-    LazyColumn(
-        modifier = modifier
-            .fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(24.dp),
-        contentPadding = PaddingValues(bottom = 80.dp)
-    ) {
-        item {
+        ) {
+            Spacer(modifier = Modifier.height(16.dp))
             ExerciseHistoryPlot(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
             )
-        }
 
-        items(history) { group ->
-            HistoricalExerciseCard(
-                date = group.label,
-                sets = group.sets,
-                rpe  = group.rpe
-            )
-        }
+            Spacer(modifier = Modifier.height(16.dp))
 
-        item {
-            Spacer(modifier = Modifier.height(80.dp))
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
+                contentPadding = PaddingValues(bottom = 80.dp)
+            ) {
+                itemsIndexed(history, key = { index, _ -> index }) { _, group ->
+                    HistoricalExerciseCard(
+                        date = group.label,
+                        sets = group.sets
+                    )
+                }
+            }
         }
     }
 }
+
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -143,17 +136,21 @@ fun ExerciseHistoryPlot(modifier: Modifier = Modifier) {
 fun HistoricalExerciseCard(
     date: String,
     sets: List<Pair<String, String>>,
-    rpe: Int,
     modifier: Modifier = Modifier
 ) {
-    val parsedSets = sets.mapNotNull { (w, r) ->
+    // Parse into Float/Int pairs
+    val parsedSets: List<Pair<Float, Int>> = sets.mapNotNull { (w, r) ->
         val weight = w.toFloatOrNull()
-        val reps = r.toIntOrNull()
-        if (weight != null && reps != null) Triple(weight, reps, rpe) else null
+        val reps   = r.toIntOrNull()
+        if (weight != null && reps != null) weight to reps else null
     }
 
-    val highest1RM = parsedSets.maxOfOrNull { (w, r, _) -> w * (1 + 0.0333 * r) } ?: 0.0
-    val totalVolume = parsedSets.sumOf { (w, r, _) -> (w * r).toInt() }
+    // Compute highest 1RM (as Float) and total volume
+    val highest1RM = parsedSets
+        .maxOfOrNull { (w, reps) -> w * (1 + 0.0333f * reps) }
+        ?: 0f
+
+    val totalVolume = parsedSets.sumOf { (w, reps) -> (w * reps).toInt() }
 
     Surface(
         modifier = modifier
@@ -169,22 +166,21 @@ fun HistoricalExerciseCard(
                 .padding(12.dp)
         ) {
             Text(
-                text = "Workout - $date",
+                text = "Workout – $date",
                 style = MaterialTheme.typography.titleMedium
             )
             Spacer(modifier = Modifier.height(4.dp))
 
-            parsedSets.forEachIndexed { index, (weight, reps, _) ->
+            parsedSets.forEachIndexed { index, (weight, reps) ->
                 val volume = (weight * reps).toInt()
-                val oneRM = weight * (1 + 0.0333 * reps)
+                val oneRM  = weight * (1 + 0.0333f * reps)
                 HistoricalSetRow(
                     setNumber = index + 1,
-                    reps = reps,
-                    weight = weight,
-                    rpe = rpe,
-                    volume = volume,
+                    reps      = reps,
+                    weight    = weight,
+                    volume    = volume,
                     oneRepMax = oneRM,
-                    isMax = oneRM == highest1RM
+                    isMax     = oneRM == highest1RM
                 )
             }
 
@@ -202,23 +198,23 @@ fun HistoricalSetRow(
     setNumber: Int,
     reps: Int,
     weight: Float,
-    rpe: Int,
     volume: Int,
-    oneRepMax: Double,
-    isMax: Boolean
+    oneRepMax: Float,
+    isMax: Boolean,
+    modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 2.dp, horizontal = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
-            text = "$setNumber: $reps reps × ${weight.toInt()}kg",
+            text  = "$setNumber: $reps reps × ${weight.toInt()}kg",
             style = MaterialTheme.typography.bodyMedium
         )
         Text(
-            text = "RPE $rpe; Vol $volume; 1RM: ${String.format("%.1f", oneRepMax)}",
+            text  = "Vol $volume · 1RM ${"%.1f".format(oneRepMax)}",
             style = if (isMax)
                 MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
             else
@@ -235,7 +231,7 @@ fun Preview_ExerciseHistoryScreenContent() {
             exerciseName = "Bench Press",
             history = listOf(
                 SetGroupDisplayData("Yesterday", listOf("50" to "8", "55" to "6")),
-                SetGroupDisplayData("2 Days Ago", listOf("60" to "5", "62.5" to "5", "65" to "4"), rpe = 7)
+                SetGroupDisplayData("2 Days Ago", listOf("60" to "5", "62.5" to "5", "65" to "4"))
             )
         )
     }

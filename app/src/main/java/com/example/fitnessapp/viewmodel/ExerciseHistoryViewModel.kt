@@ -12,8 +12,7 @@ import kotlinx.coroutines.flow.stateIn
 
 data class SetGroupDisplayData(
     val label: String,
-    val sets: List<Pair<String, String>>,
-    val rpe: Int = 8 // Default value; replace or compute as needed
+    val sets: List<Pair<String, String>>
 )
 
 data class ExerciseHistoryScreenState(
