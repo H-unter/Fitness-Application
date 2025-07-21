@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 data class SetEntry (
     val weight: String,
     val reps: String,
-    val setEntryId: Int,
-    val setGroupId: Int,
-    val setIndex: Int
+//    val setEntryId: Int,
+//    val setGroupId: Int,
+//    val setIndex: Int
 )

@@ -39,6 +39,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.example.fitnessapp.data.SetEntry
+import com.example.fitnessapp.data.SetGroup
+import com.example.fitnessapp.data.WeightUnit
 import com.example.fitnessapp.ui.theme.FitnessappTheme
 import com.example.fitnessapp.viewmodel.ExerciseHistoryViewModel
 import com.example.fitnessapp.viewmodel.SetGroupDisplayData
@@ -73,22 +76,27 @@ fun ExerciseHistoryScreen(
     viewModel: ExerciseHistoryViewModel = koinViewModel(),
     modifier: Modifier = Modifier
 ) {
-    val state by viewModel.screenState.collectAsStateWithLifecycle()
+    // collect the plain list of domain SetGroup
+    val setGroups by viewModel.setGroups.collectAsStateWithLifecycle()
     ExerciseHistoryScreenContent(
-        exerciseName = state.exerciseName,
-        history      = state.history,
+        exerciseName = viewModel.exerciseName,
+        setGroups    = setGroups,
         onBack       = { navController.popBackStack() },
         modifier     = modifier
     )
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ExerciseHistoryScreenContent(
     exerciseName: String,
-    history: List<SetGroupDisplayData>,
+    setGroups: List<SetGroup>,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // get the same VM to fetch timestamps
+    val viewModel: ExerciseHistoryViewModel = koinViewModel()
+
     Scaffold(
         topBar    = { ExerciseHistoryTopAppBar(exerciseName, onBack) },
         bottomBar = { BottomNavigationBar() }
@@ -116,14 +124,22 @@ fun ExerciseHistoryScreenContent(
                 verticalArrangement = Arrangement.spacedBy(24.dp),
                 contentPadding      = PaddingValues(bottom = 80.dp)
             ) {
-                itemsIndexed(history, key = {index, _ -> index}) { _, group ->
+                itemsIndexed(
+                    items = setGroups,
+                    key = { _, sg -> sg.setGroupId }
+                ) { _, sg ->
+                    val date by viewModel
+                        .dateForSetGroup(sg.setGroupId.toInt())
+                        .collectAsStateWithLifecycle("loading")
+
                     HistoricalExerciseCard(
-                        date = group.timestamp,
-                        sets = group.sets
+                        date = date,
+                        sets = sg.entries.map { it.weight to it.reps }
                     )
                 }
                 item { Spacer(Modifier.height(80.dp)) }
             }
+
         }
     }
 }
@@ -328,27 +344,59 @@ fun HistoricalSetRow(
     }
 }
 
+@Preview(showBackground = true)
 @Composable
 fun Preview_ExerciseHistoryScreenContent() {
     FitnessappTheme {
         ExerciseHistoryScreenContent(
-            onBack = {},
             exerciseName = "Bench Press",
-            history = listOf(
-                SetGroupDisplayData("Yesterday", listOf("50" to "8", "55" to "6")),
-                SetGroupDisplayData("2 Days Ago", listOf("60" to "5", "62.5" to "5", "65" to "4"))
-            )
+            setGroups = listOf(
+                SetGroup(
+                    setGroupId = 1,
+                    workoutId = 1,
+                    exerciseId = 1,
+                    name = "Yesterday",
+                    weightUnit = WeightUnit.KG,
+                    exerciseName = "Bench Press",
+                    entries = listOf(
+                        SetEntry(weight = "50", reps = "8"),
+                        SetEntry(weight = "55", reps = "6")
+                    )
+                ),
+                SetGroup(
+                    setGroupId = 2,
+                    workoutId = 1,
+                    exerciseId = 1,
+                    name = "2 Days Ago",
+                    weightUnit = WeightUnit.KG,
+                    exerciseName = "Bench Press",
+                    entries = listOf(
+                        SetEntry(weight = "60", reps = "5"),
+                        SetEntry(weight = "62.5", reps = "5"),
+                        SetEntry(weight = "65", reps = "4")
+                    )
+                )
+            ),
+            onBack = {}
         )
     }
 }
 
-@Preview(name = "Light Mode", uiMode = Configuration.UI_MODE_NIGHT_NO, showBackground = true)
+@Preview(
+    name = "Light Mode",
+    uiMode = Configuration.UI_MODE_NIGHT_NO,
+    showBackground = true
+)
 @Composable
 fun Preview_ExerciseHistoryScreenContent_Light() {
     Preview_ExerciseHistoryScreenContent()
 }
 
-@Preview(name = "Dark Mode", uiMode = Configuration.UI_MODE_NIGHT_YES, showBackground = true)
+@Preview(
+    name = "Dark Mode",
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
+    showBackground = true
+)
 @Composable
 fun Preview_ExerciseHistoryScreenContent_Dark() {
     Preview_ExerciseHistoryScreenContent()

@@ -15,5 +15,5 @@ interface ExerciseRepository {
     fun getExerciseActivityById(exerciseId: Long): Flow<List<SetGroup>>
 
     // return the workout that corresponds to a given setGroup
-//    fun getWorkoutEntityBySetGroupId(setGroupId: Long): Flow<Workout>
+    fun getWorkoutStartTimeForSetGroup(setGroupId: Long): Flow<Long>
 }

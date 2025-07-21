@@ -2,13 +2,17 @@ package com.example.fitnessapp.viewmodel
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.ui.text.style.TextDecoration.Companion.combine
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.fitnessapp.data.ExerciseRepository
+import com.example.fitnessapp.data.SetGroup
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import java.time.Instant
@@ -25,41 +29,31 @@ data class ExerciseHistoryScreenState(
     val history: List<SetGroupDisplayData> = emptyList()
 )
 
-@RequiresApi(Build.VERSION_CODES.O)
 class ExerciseHistoryViewModel(
     private val exerciseRepository: ExerciseRepository,
     savedStateHandle: SavedStateHandle
-) : ViewModel() {
-
+): ViewModel() {
     private val exerciseId: Long = savedStateHandle["exerciseId"] ?: 0L
+    val exerciseName: String = savedStateHandle["exerciseName"] ?: ""
+    // just the raw history of set-groups (no dates)
+    val setGroups: StateFlow<List<SetGroup>> =
+        exerciseRepository
+            .getExerciseActivityById(exerciseId)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    // each set-group’s formatted date
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun dateForSetGroup(setGroupId: Int): Flow<String> =
+        exerciseRepository
+            .getWorkoutStartTimeForSetGroup(setGroupId.toLong())
+            .map { epoch ->
+                formatter.format(Instant.ofEpochMilli(epoch))
+            }
 
     companion object {
         @RequiresApi(Build.VERSION_CODES.O)
-        private val formatter: DateTimeFormatter =
-            DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm")
-                .withZone(ZoneId.systemDefault())
+        private val formatter = DateTimeFormatter
+            .ofPattern("dd MMM yyyy, HH:mm")
+            .withZone(ZoneId.systemDefault())
     }
-
-    @RequiresApi(Build.VERSION_CODES.O)
-    val screenState: StateFlow<ExerciseHistoryScreenState> =
-        exerciseRepository
-            .getExerciseActivityById(exerciseId)
-            .map { setGroups ->
-                val history = setGroups.map { setGroup ->
-                    // parse the raw epoch (stored in name) and format it
-                    val raw = setGroup.name.toLongOrNull() ?: 0L
-                    val formatted = formatter.format(Instant.ofEpochMilli(raw))
-                    SetGroupDisplayData(
-                        timestamp = formatted,
-                        sets = setGroup.entries.map { it.weight.toString() to it.reps.toString() }
-                    )
-                }
-                val exerciseName = setGroups.firstOrNull()?.exerciseName ?: "Unknown"
-                ExerciseHistoryScreenState(exerciseName, history)
-            }
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = ExerciseHistoryScreenState()
-            )
 }

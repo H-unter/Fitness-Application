@@ -35,4 +35,14 @@ interface SetGroupDao {
     """)
     fun getWorkoutForSetGroup(setGroupId: Int): Flow<WorkoutEntity>
 
+    @Query("""
+    SELECT workout.startTime
+      FROM Workout AS workout
+      JOIN SetGroup AS setGroup
+        ON workout.workoutId = setGroup.workoutId
+     WHERE setGroup.setGroupId = :setGroupId
+     LIMIT 1
+  """)
+    fun getWorkoutStartTimeForSetGroup(setGroupId: Int): Flow<Long>
+
 }

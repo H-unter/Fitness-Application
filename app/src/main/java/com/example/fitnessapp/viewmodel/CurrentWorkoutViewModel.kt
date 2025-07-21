@@ -70,9 +70,9 @@ class CurrentWorkoutViewModel(
                 SetEntry(
                     weight      = "0",
                     reps        = "0",
-                    setEntryId  = 0,
-                    setGroupId  = 0,
-                    setIndex    = 0  
+//                    setEntryId  = 0,
+//                    setGroupId  = 0,
+//                    setIndex    = 0
                 )
             )
         )

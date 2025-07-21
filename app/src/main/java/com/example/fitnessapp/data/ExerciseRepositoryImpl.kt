@@ -43,15 +43,8 @@ class ExerciseRepositoryImpl(
                 groupWithEntriesList.map { it.toDomain() }
             }
 
-//    override fun getWorkoutEntityBySetGroupId(setGroupId: Long): Flow<Workout> =
-//        workoutDao.getWorkoutEntityBySetGroupId(setGroupId).map{
-//            Workout(
-//                id = it.workoutId,
-//                locationId = it.gymId,
-//                startTime = it.startTime,
-//                endTime = it.endTime,
-//                isInProgress = it.isInProgress
-//            )
-//        }
+    override fun getWorkoutStartTimeForSetGroup(setGroupId: Long): Flow<Long> =
+        setGroupDao
+            .getWorkoutStartTimeForSetGroup(setGroupId.toInt())
 
 }
