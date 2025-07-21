@@ -5,7 +5,8 @@ import kotlinx.coroutines.flow.map
 
 class ExerciseRepositoryImpl(
     private val exerciseDao: ExerciseDao,
-    private val setGroupDao: SetGroupDao
+    private val setGroupDao: SetGroupDao,
+    private val workoutDao: WorkoutDao
 ) : ExerciseRepository {
 
     override fun getAllExercises(): Flow<List<Exercise>> =
@@ -41,4 +42,16 @@ class ExerciseRepositoryImpl(
             .map { groupWithEntriesList ->
                 groupWithEntriesList.map { it.toDomain() }
             }
+
+//    override fun getWorkoutEntityBySetGroupId(setGroupId: Long): Flow<Workout> =
+//        workoutDao.getWorkoutEntityBySetGroupId(setGroupId).map{
+//            Workout(
+//                id = it.workoutId,
+//                locationId = it.gymId,
+//                startTime = it.startTime,
+//                endTime = it.endTime,
+//                isInProgress = it.isInProgress
+//            )
+//        }
+
 }

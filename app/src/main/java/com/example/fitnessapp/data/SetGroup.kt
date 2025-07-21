@@ -7,7 +7,7 @@ data class SetGroup(
     val name: String,
     val weightUnit: WeightUnit,
     val exerciseName: String,
-    val entries: List<SetEntryEntity>
+    val entries: List<SetEntry>
 )
 
 

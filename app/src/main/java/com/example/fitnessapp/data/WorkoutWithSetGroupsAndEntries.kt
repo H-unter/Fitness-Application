@@ -14,3 +14,13 @@ data class WorkoutWithSetGroupsAndEntries(
     )
     val setGroups: List<SetGroupWithEntries>
 )
+
+fun WorkoutWithSetGroupsAndEntries.toDomain(): Workout =
+    Workout(
+        id         = workout.workoutId,
+        locationId = workout.gymId,
+        startTime  = workout.startTime,
+        endTime    = workout.endTime,
+        setGroups  = setGroups.map { it.toDomain() },
+        isInProgress = workout.isInProgress
+    )

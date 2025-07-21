@@ -14,4 +14,6 @@ interface ExerciseRepository {
     // return all exercise activity (all setGroups) given an exercise id, used in the ExerciseHistoryScreen
     fun getExerciseActivityById(exerciseId: Long): Flow<List<SetGroup>>
 
+    // return the workout that corresponds to a given setGroup
+//    fun getWorkoutEntityBySetGroupId(setGroupId: Long): Flow<Workout>
 }

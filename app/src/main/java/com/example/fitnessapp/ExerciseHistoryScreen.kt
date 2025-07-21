@@ -1,6 +1,8 @@
 package com.example.fitnessapp
 
 import android.content.res.Configuration
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -64,6 +66,7 @@ import com.patrykandpatrick.vico.core.common.shape.CorneredShape
 import org.koin.androidx.compose.koinViewModel
 
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ExerciseHistoryScreen(
     navController: NavHostController,
@@ -73,9 +76,9 @@ fun ExerciseHistoryScreen(
     val state by viewModel.screenState.collectAsStateWithLifecycle()
     ExerciseHistoryScreenContent(
         exerciseName = state.exerciseName,
-        history = state.history,
-        onBack = {navController.popBackStack()},
-        modifier = modifier
+        history      = state.history,
+        onBack       = { navController.popBackStack() },
+        modifier     = modifier
     )
 }
 
@@ -96,33 +99,34 @@ fun ExerciseHistoryScreenContent(
                 .padding(padding)
                 .padding(horizontal = 16.dp)
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(Modifier.height(16.dp))
+
             ExerciseHistoryPlot(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(Modifier.height(16.dp))
 
             LazyColumn(
-                modifier = Modifier
+                modifier           = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
-                contentPadding = PaddingValues(bottom = 80.dp)
+                contentPadding      = PaddingValues(bottom = 80.dp)
             ) {
-                itemsIndexed(history, key = { index, _ -> index }) { _, group ->
+                itemsIndexed(history, key = {index, _ -> index}) { _, group ->
                     HistoricalExerciseCard(
-                        date = group.label,
+                        date = group.timestamp,
                         sets = group.sets
                     )
                 }
+                item { Spacer(Modifier.height(80.dp)) }
             }
         }
     }
 }
-
 
 
 @OptIn(ExperimentalMaterial3Api::class)
