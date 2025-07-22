@@ -14,6 +14,9 @@ interface ExerciseRepository {
     // return all exercise activity (all setGroups) given an exercise id, used in the ExerciseHistoryScreen
     fun getExerciseActivityById(exerciseId: Long): Flow<List<SetGroup>>
 
+    // return the name of an exercise given its id
+    suspend fun getExerciseNameById(exerciseId: Long): String
+
     // return the workout that corresponds to a given setGroup
     fun getWorkoutStartTimeForSetGroup(setGroupId: Long): Flow<Long>
 }

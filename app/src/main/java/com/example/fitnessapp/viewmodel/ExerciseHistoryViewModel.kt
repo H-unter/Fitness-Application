@@ -2,7 +2,6 @@ package com.example.fitnessapp.viewmodel
 
 import android.os.Build
 import androidx.annotation.RequiresApi
-import androidx.compose.ui.text.style.TextDecoration.Companion.combine
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -12,12 +11,15 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 
 data class SetGroupDisplayData(
     val timestamp: String,
@@ -34,14 +36,66 @@ class ExerciseHistoryViewModel(
     savedStateHandle: SavedStateHandle
 ): ViewModel() {
     private val exerciseId: Long = savedStateHandle["exerciseId"] ?: 0L
-    val exerciseName: String = savedStateHandle["exerciseName"] ?: ""
-    // just the raw history of set-groups (no dates)
+
+    // exercise name
+    private val _exerciseName = MutableStateFlow("")
+    val exerciseName: StateFlow<String> = _exerciseName
+
+    init {
+        viewModelScope.launch {
+            _exerciseName.value = exerciseRepository
+                .getExerciseNameById(exerciseId)
+        }
+    }
+
     val setGroups: StateFlow<List<SetGroup>> =
         exerciseRepository
             .getExerciseActivityById(exerciseId)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    // each set-group’s formatted date
+
+    val timestamps: StateFlow<List<Double>> = setGroups
+        .flatMapLatest { groups ->
+            if (groups.isEmpty()) {
+                flowOf(emptyList<Double>())
+            } else {
+                combine(
+                    groups.map { sg ->
+                        exerciseRepository.getWorkoutStartTimeForSetGroup(sg.setGroupId.toLong())
+                    }
+                ) { epochsArray: Array<Long> ->
+                    epochsArray.map { it.toDouble() }
+                }
+            }
+        }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            emptyList<Double>()
+        )
+
+
+    // total volume per setGroup
+    val volumes: Flow<List<Double>> = setGroups.map { groups ->
+        groups.map { sg ->
+            sg.entries.sumOf { e ->
+                e.weight.toDouble() * e.reps.toDouble()
+            }
+        }
+    }
+
+    val oneRepMaxes: Flow<List<Double>> = setGroups.map { groups ->
+        groups.map { sg ->
+            sg.entries
+                .maxOfOrNull { e ->
+                    val w = e.weight.toDouble()
+                    val r = e.reps.toDouble()
+                    w * (1 + r / 30.0)
+                } ?: 0.0
+        }
+    }
+
+    // formatted date for a single setGroup
     @RequiresApi(Build.VERSION_CODES.O)
     fun dateForSetGroup(setGroupId: Int): Flow<String> =
         exerciseRepository

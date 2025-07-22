@@ -2,6 +2,7 @@ package com.example.fitnessapp
 
 import android.content.res.Configuration
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -28,6 +29,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -44,29 +46,29 @@ import com.example.fitnessapp.data.SetGroup
 import com.example.fitnessapp.data.WeightUnit
 import com.example.fitnessapp.ui.theme.FitnessappTheme
 import com.example.fitnessapp.viewmodel.ExerciseHistoryViewModel
-import com.example.fitnessapp.viewmodel.SetGroupDisplayData
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
-import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
-import com.patrykandpatrick.vico.compose.common.component.rememberLineComponent
+import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
 import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
 import com.patrykandpatrick.vico.compose.common.component.shapeComponent
 import com.patrykandpatrick.vico.compose.common.fill
 import com.patrykandpatrick.vico.compose.common.rememberHorizontalLegend
+import com.patrykandpatrick.vico.core.cartesian.Zoom
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
-import com.patrykandpatrick.vico.core.cartesian.data.columnSeries
+import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
-import com.patrykandpatrick.vico.core.cartesian.layer.ColumnCartesianLayer
-import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
 import com.patrykandpatrick.vico.core.common.LegendItem
 import com.patrykandpatrick.vico.core.common.data.ExtraStore
 import com.patrykandpatrick.vico.core.common.shape.CorneredShape
 import org.koin.androidx.compose.koinViewModel
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -77,9 +79,10 @@ fun ExerciseHistoryScreen(
     modifier: Modifier = Modifier
 ) {
     // collect the plain list of domain SetGroup
-    val setGroups by viewModel.setGroups.collectAsStateWithLifecycle()
+    val exerciseName by viewModel.exerciseName.collectAsState(initial = "")
+    val setGroups by viewModel.setGroups.collectAsState(initial = emptyList())
     ExerciseHistoryScreenContent(
-        exerciseName = viewModel.exerciseName,
+        exerciseName = exerciseName,
         setGroups    = setGroups,
         onBack       = { navController.popBackStack() },
         modifier     = modifier
@@ -110,6 +113,7 @@ fun ExerciseHistoryScreenContent(
             Spacer(Modifier.height(16.dp))
 
             ExerciseHistoryPlot(
+                viewModel = viewModel,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
@@ -180,64 +184,95 @@ fun ExerciseHistoryTopAppBar(
 
 private val HistoryLegendKey = ExtraStore.Key<List<String>>()
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun ExerciseHistoryPlot(modifier: Modifier = Modifier) {
+fun ExerciseHistoryPlot(
+    viewModel: ExerciseHistoryViewModel,
+    modifier: Modifier = Modifier
+) {
+    // collect the three series from the ViewModel
+    val xValues by viewModel.timestamps.collectAsState(initial = emptyList())        // :contentReference[oaicite:6]{index=6}
+    val volumeSeries by viewModel.volumes.collectAsState(initial = emptyList())      // :contentReference[oaicite:7]{index=7}
+    val oneRepMaxSeries by viewModel.oneRepMaxes.collectAsState(initial = emptyList()) // :contentReference[oaicite:8]{index=8}
 
-    val barColor  = MaterialTheme.colorScheme.primary.toArgb()
-    val lineColor = MaterialTheme.colorScheme.secondary.toArgb()
-
-
-    val textComponent = rememberTextComponent(
-        color = MaterialTheme.colorScheme.onSurface
+    // debug log
+    Log.d(
+        "ExerciseHistoryPlot",
+        "plot data → xValues: $xValues\nvolumeSeries: $volumeSeries\noneRepMaxSeries: $oneRepMaxSeries"
     )
 
-    // TODO: let this live in the ViewModel
+    val barColor = MaterialTheme.colorScheme.primary.toArgb()
+    val lineColor = MaterialTheme.colorScheme.secondary.toArgb()
+    val textComponent = rememberTextComponent(color = MaterialTheme.colorScheme.onSurface)
     val modelProducer = remember { CartesianChartModelProducer() }
-    LaunchedEffect(Unit) {
+
+    // push data into Vico whenever any series changes
+    LaunchedEffect(xValues, volumeSeries, oneRepMaxSeries) {
         modelProducer.runTransaction {
-            columnSeries  { series(5,6,5,2,11,8,5,2,15,11,8,13,12,10,2,7) }
-            lineSeries    { series(8,9,7,5,13,10,7,5,18,12,10,15,14,12,5,9) }
-            extras { it[HistoryLegendKey] = listOf("Volume", "1RM") }
+            if (xValues.isNotEmpty() &&
+                volumeSeries.size == xValues.size &&
+                oneRepMaxSeries.size == xValues.size
+            ) {
+                lineSeries {
+                    // first series: volume
+                    series(xValues, volumeSeries)
+                    // second series: 1RM
+                    series(xValues, oneRepMaxSeries)
+                }
+                extras { it[HistoryLegendKey] = listOf("Volume", "1RM") }
+            }
         }
     }
 
-    Surface(
-        modifier       = modifier,
-        shape          = RoundedCornerShape(12.dp),
-        tonalElevation = 2.dp,
-        color          = MaterialTheme.colorScheme.surfaceContainer
-    ) {
-        Column(Modifier.fillMaxSize().padding(8.dp)) {
 
+    // format bottom axis using real epoch‐ms values
+    val dateFormatter = remember {
+        DateTimeFormatter.ofPattern("dd MMM")
+            .withZone(ZoneId.systemDefault())
+    }
+    val bottomFormatter = CartesianValueFormatter { _, x, _ ->
+        dateFormatter.format(Instant.ofEpochMilli(x.toLong()))
+    }
+    val zoomState = rememberVicoZoomState(initialZoom = Zoom.Content)
+
+    // UI tree
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        tonalElevation = 2.dp,
+        color = MaterialTheme.colorScheme.surfaceContainer
+    ) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(8.dp)
+        ) {
             CartesianChartHost(
+                zoomState = zoomState,
                 chart = rememberCartesianChart(
-                    //column layer
-                    rememberColumnCartesianLayer(
-                        columnProvider = ColumnCartesianLayer.ColumnProvider.series(
-                            rememberLineComponent(fill = fill(Color(barColor)), thickness = 14.dp)
-                        )
-                    ),
-                    // line layer
-                    rememberLineCartesianLayer(
-                        LineCartesianLayer.LineProvider.series(
-                            LineCartesianLayer.Line(
-                                LineCartesianLayer.LineFill.single(fill(Color(lineColor)))
-                            )
-                        )
-                    ),
+                    rememberLineCartesianLayer(),
+                    rememberLineCartesianLayer(),
                     startAxis = VerticalAxis.rememberStart(),
-                    bottomAxis = HorizontalAxis.rememberBottom(),
+                    bottomAxis = HorizontalAxis.rememberBottom(valueFormatter = bottomFormatter),
                     legend = rememberHorizontalLegend(
-                        items = { extraStore ->
-                            extraStore[HistoryLegendKey].forEachIndexed { i, label ->
+                        items = { extraStore: ExtraStore ->
+                            // read your labels out of the extra store
+                            val labels: List<String> = extraStore[HistoryLegendKey]
+                                ?: return@rememberHorizontalLegend
+                            // use a simple for-loop to avoid the forEachIndexed ambiguity
+                            for (index in labels.indices) {
+                                val labelText = labels[index]
                                 add(
                                     LegendItem(
-                                        shapeComponent(
-                                            fill(if (i == 0) Color(barColor) else Color(lineColor)),
-                                            CorneredShape.Pill
+                                        icon = shapeComponent(
+                                            fill = fill(
+                                                if (index == 0) Color(barColor)
+                                                else Color(lineColor)
+                                            ),
+                                            shape = CorneredShape.Pill
                                         ),
-                                        textComponent,
-                                        label
+                                        labelComponent = textComponent,
+                                        label = labelText
                                     )
                                 )
                             }
@@ -245,13 +280,15 @@ fun ExerciseHistoryPlot(modifier: Modifier = Modifier) {
                     )
                 ),
                 modelProducer = modelProducer,
-                modifier      = Modifier
+                modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
             )
         }
     }
 }
+
+
 
 @Composable
 fun HistoricalExerciseCard(
@@ -344,6 +381,7 @@ fun HistoricalSetRow(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true)
 @Composable
 fun Preview_ExerciseHistoryScreenContent() {
@@ -382,6 +420,7 @@ fun Preview_ExerciseHistoryScreenContent() {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Preview(
     name = "Light Mode",
     uiMode = Configuration.UI_MODE_NIGHT_NO,
