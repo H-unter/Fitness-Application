@@ -5,7 +5,8 @@ import kotlinx.coroutines.flow.map
 
 class ExerciseRepositoryImpl(
     private val exerciseDao: ExerciseDao,
-    private val setGroupDao: SetGroupDao
+    private val setGroupDao: SetGroupDao,
+    private val workoutDao: WorkoutDao
 ) : ExerciseRepository {
 
     override fun getAllExercises(): Flow<List<Exercise>> =
@@ -36,9 +37,17 @@ class ExerciseRepositoryImpl(
         }
     }
 
-    override fun getExerciseActivityById(exerciseId: Long): Flow<List<SetGroup>> =
-        setGroupDao.getSetGroupsWithEntriesByExerciseId(exerciseId)
+    override fun getExerciseActivityById(exerciseId: Long, excludeCurrentWorkout: Boolean): Flow<List<SetGroup>> =
+        setGroupDao.getSetGroupsWithEntriesByExerciseId(exerciseId=exerciseId)
             .map { groupWithEntriesList ->
                 groupWithEntriesList.map { it.toDomain() }
             }
+
+    override fun getWorkoutStartTimeForSetGroup(setGroupId: Long): Flow<Long> =
+        setGroupDao
+            .getWorkoutStartTimeForSetGroup(setGroupId.toInt())
+
+    override suspend fun getExerciseNameById(exerciseId: Long): String {
+        return exerciseDao.getExerciseById(exerciseId.toInt())?.name ?: ""
+    }
 }

@@ -87,17 +87,16 @@ class CurrentWorkoutRepositoryImpl(
             setGroup.entries.forEachIndexed { index, setItem ->
                 setEntryDao.insertSetEntry(
                     SetEntryEntity(
+                        setEntryId = 0, // auto generated
                         setGroupId = setGroupId,
-                        setIndex = index,
-                        weight = setItem.weight,
-                        reps = setItem.reps
+                        setIndex   = index,
+                        weight     = setItem.weight.toFloat(),
+                        reps       = setItem.reps.toInt()
                     )
                 )
             }
         }
     }
-
-
 
     override suspend fun removeExercise(setGroup: SetGroup) {
         withContext(dispatcher) {
@@ -113,6 +112,7 @@ class CurrentWorkoutRepositoryImpl(
             val nextSetIndex = (targetSetGroup.entries.maxOfOrNull { it.setIndex } ?: -1) + 1
             setEntryDao.insertSetEntry(
                 SetEntryEntity(
+                    setEntryId = 0, // auto generated
                     setGroupId = targetSetGroup.group.setGroupId,
                     setIndex = nextSetIndex,
                     weight = 0f,
@@ -152,24 +152,3 @@ class CurrentWorkoutRepositoryImpl(
         }
     }
 }
-
-fun SetGroupWithEntries.toDomain(): SetGroup {
-    return SetGroup(
-        setGroupId = group.setGroupId,
-        workoutId = group.workoutId,
-        name = exercise?.name ?: "[Unknown Exercise]",
-        weightUnit = group.weightUnit,
-        exerciseName = exercise?.name ?: "[Unknown Exercise]",
-        exerciseId = exercise?.exerciseId ?: 0,
-        entries = entries
-    )
-}
-
-fun WorkoutWithSetGroupsAndEntries.toDomain(): Workout =
-    Workout(
-        id         = workout.workoutId,
-        locationId = workout.gymId,
-        startTime  = workout.startTime,
-        endTime    = workout.endTime,
-        setGroups  = setGroups.map { it.toDomain() }
-    )

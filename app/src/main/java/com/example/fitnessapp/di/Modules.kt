@@ -62,7 +62,8 @@ val appModule = module {
     single<ExerciseRepository> {
         ExerciseRepositoryImpl(
             exerciseDao = get(),
-            setGroupDao = get()
+            setGroupDao = get(),
+            workoutDao  = get()
         )
     }
 

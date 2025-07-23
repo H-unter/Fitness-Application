@@ -30,4 +30,17 @@ interface WorkoutDao{
     @Transaction
     @Query("SELECT * FROM Workout WHERE workoutId = :id")
     fun getWorkoutWithSetGroupsAndEntries(id: Int): Flow<WorkoutWithSetGroupsAndEntries>
+
+    @Query("""
+    SELECT * FROM Workout
+     WHERE workoutId IN (
+       SELECT workoutId
+         FROM SetGroup
+        WHERE setGroupId = :setGroupId
+     )
+    LIMIT 1
+  """)
+    fun getWorkoutEntityBySetGroupId(
+        setGroupId: Long
+    ): Flow<WorkoutEntity>
 }

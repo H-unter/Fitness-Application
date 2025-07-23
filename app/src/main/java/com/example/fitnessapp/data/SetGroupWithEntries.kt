@@ -21,3 +21,13 @@ data class SetGroupWithEntries(
     )
     val exercise: ExerciseEntity?
 )
+
+fun SetGroupWithEntries.toDomain(): SetGroup = SetGroup(
+    setGroupId   = group.setGroupId,
+    workoutId    = group.workoutId,
+    exerciseId   = group.exerciseId,
+    name         = exercise?.name ?: "[Unknown Exercise]",
+    weightUnit   = group.weightUnit,
+    exerciseName = exercise?.name ?: "[Unknown Exercise]",
+    entries      = entries.map { it.toDomain() }
+)
