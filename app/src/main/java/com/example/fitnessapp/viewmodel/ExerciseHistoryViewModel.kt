@@ -85,12 +85,12 @@ class ExerciseHistoryViewModel(
     }
 
     val oneRepMaxes: Flow<List<Double>> = setGroups.map { groups ->
-        groups.map { sg ->
-            sg.entries
-                .maxOfOrNull { e ->
-                    val w = e.weight.toDouble()
-                    val r = e.reps.toDouble()
-                    w * (1 + r / 30.0)
+        groups.map { setGroups ->
+            setGroups.entries
+                .maxOfOrNull { setEntry ->
+                    val weight = setEntry.weight.toDouble()
+                    val reps = setEntry.reps.toDouble()
+                    weight * (1 + reps / 30.0)
                 } ?: 0.0
         }
     }

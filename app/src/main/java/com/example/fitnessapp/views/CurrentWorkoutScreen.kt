@@ -1,4 +1,4 @@
-package com.example.fitnessapp
+package com.example.fitnessapp.views
 
 import android.content.res.Configuration
 import androidx.compose.foundation.border
@@ -53,6 +53,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import com.example.fitnessapp.BottomNavigationBar
 import com.example.fitnessapp.data.SetGroup
 import com.example.fitnessapp.navigation.Screens
 import com.example.fitnessapp.ui.theme.FitnessappTheme
