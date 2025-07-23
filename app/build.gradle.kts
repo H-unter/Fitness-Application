@@ -12,7 +12,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.fitnessapp"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
@@ -70,5 +70,6 @@ dependencies {
 //    implementation("androidx.compose.material3:material3:1.13.0-alpha14")
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
+    implementation("androidx.health.connect:connect-client:1.1.0-alpha10")
     ksp(libs.room.compiler)
 }
