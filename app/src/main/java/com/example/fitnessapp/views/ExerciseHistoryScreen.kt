@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -47,6 +48,7 @@ import com.example.fitnessapp.data.SetGroup
 import com.example.fitnessapp.data.WeightUnit
 import com.example.fitnessapp.ui.theme.FitnessappTheme
 import com.example.fitnessapp.viewmodel.ExerciseHistoryViewModel
+import com.example.fitnessapp.viewmodel.SetGroupDisplayData
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberEnd
@@ -89,30 +91,24 @@ fun ExerciseHistoryScreen(
     viewModel: ExerciseHistoryViewModel = koinViewModel(),
     modifier: Modifier = Modifier
 ) {
-    // collect the plain list of domain SetGroup
-    val exerciseName by viewModel.exerciseName.collectAsState(initial = "")
-    val setGroups by viewModel.setGroups.collectAsState(initial = emptyList())
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
     ExerciseHistoryScreenContent(
-        exerciseName = exerciseName,
-        setGroups    = setGroups,
-        onBack       = { navController.popBackStack() },
-        modifier     = modifier
+        uiState = uiState,
+        onBack  = { navController.popBackStack() },
+        modifier= modifier
     )
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ExerciseHistoryScreenContent(
-    exerciseName: String,
-    setGroups: List<SetGroup>,
+    uiState: ExerciseHistoryUIState,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // get the same VM to fetch timestamps
-    val viewModel: ExerciseHistoryViewModel = koinViewModel()
-
     Scaffold(
-        topBar    = { ExerciseHistoryTopAppBar(exerciseName, onBack) },
+        topBar    = { ExerciseHistoryTopAppBar(uiState.exerciseName, onBack) },
         bottomBar = { BottomNavigationBar() }
     ) { padding ->
         Column(
@@ -124,8 +120,10 @@ fun ExerciseHistoryScreenContent(
             Spacer(Modifier.height(16.dp))
 
             ExerciseHistoryPlot(
-                viewModel = viewModel,
-                modifier = Modifier
+                timestamps      = uiState.xValues,
+                volumeValues    = uiState.volumeSeries,
+                oneRepMaxValues = uiState.oneRepMaxSeries,
+                modifier        = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
             )
@@ -133,28 +131,18 @@ fun ExerciseHistoryScreenContent(
             Spacer(Modifier.height(16.dp))
 
             LazyColumn(
-                modifier           = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
+                modifier           = Modifier.weight(1f).fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
                 contentPadding      = PaddingValues(bottom = 80.dp)
             ) {
-                itemsIndexed(
-                    items = setGroups,
-                    key = { _, sg -> sg.setGroupId }
-                ) { _, sg ->
-                    val date by viewModel
-                        .dateForSetGroup(sg.setGroupId.toInt())
-                        .collectAsStateWithLifecycle("loading")
-
+                itemsIndexed(uiState.historyItems) { _, item ->
                     HistoricalExerciseCard(
-                        date = date,
-                        sets = sg.entries.map { it.weight to it.reps }
+                        date = item.timestamp,
+                        sets = item.sets
                     )
                 }
                 item { Spacer(Modifier.height(80.dp)) }
             }
-
         }
     }
 }
@@ -192,100 +180,89 @@ fun ExerciseHistoryTopAppBar(
     )
 }
 
-private val HistoryLegendKey = ExtraStore.Key<List<String>>()
+private val historyLegendKey = ExtraStore.Key<List<String>>()
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ExerciseHistoryPlot(
-    viewModel: ExerciseHistoryViewModel,
+    timestamps: List<Double>,
+    volumeValues: List<Double>,
+    oneRepMaxValues: List<Double>,
     modifier: Modifier = Modifier
+        .fillMaxWidth()
+        .height(200.dp)
 ) {
-    // 1) collect the three series from the VM
-    val xValues          by viewModel.timestamps.collectAsState(initial = emptyList())
-    val volumeSeries    by viewModel.volumes.collectAsState(initial = emptyList())
-    val oneRepMaxSeries by viewModel.oneRepMaxes.collectAsState(initial = emptyList())
-
     Log.d(
         "ExerciseHistoryPlot",
-        "plot data → xValues: $xValues\nvolumeSeries: $volumeSeries\noneRepMaxSeries: $oneRepMaxSeries"
+        "plot data → xValues: $timestamps\nvolumeSeries: $volumeValues\noneRepMaxSeries: $oneRepMaxValues"
     )
 
-    // 2) prep colours & shared components
     val barColor   = MaterialTheme.colorScheme.primary.toArgb()
     val lineColor  = MaterialTheme.colorScheme.secondary.toArgb()
     val textComponent = rememberTextComponent(color = MaterialTheme.colorScheme.onSurface)
     val modelProducer = remember { CartesianChartModelProducer() }
 
-    // 3) push data into the chart
-    LaunchedEffect(xValues, volumeSeries, oneRepMaxSeries) {
+    LaunchedEffect(timestamps, volumeValues, oneRepMaxValues) {
         modelProducer.runTransaction {
-            if (xValues.isNotEmpty() && volumeSeries.size == xValues.size) {
-                columnSeries { series(x = xValues, y = volumeSeries) }
-            }
-            if (xValues.isNotEmpty() && oneRepMaxSeries.size == xValues.size) {
-                lineSeries { series(x = xValues, y = oneRepMaxSeries) }
-            }
-            extras { extraStore ->
-                extraStore[HistoryLegendKey] = listOf("Volume", "1RM")
+            if (timestamps.size == volumeValues.size && timestamps.isNotEmpty()) {
+                columnSeries { series(x = timestamps, y = volumeValues) }
+                lineSeries   { series(x = timestamps, y = oneRepMaxValues) }
+                extras        { it[historyLegendKey] = listOf("Volume", "1 RM") }
             }
         }
     }
 
-    // 4) axis formatters & zoom / step
-    val dateFormatter = remember {
+    val xAxisFormatter = remember {
         DateTimeFormatter.ofPattern("dd MMM")
             .withZone(ZoneId.systemDefault())
+    }
+    val xValueFormatter = CartesianValueFormatter { _, x, _ ->
+        xAxisFormatter.format(Instant.ofEpochMilli(x.toLong()))
     }
     val axisTitleComponent = rememberTextComponent(
         color    = MaterialTheme.colorScheme.onSurface,
         textSize = MaterialTheme.typography.bodySmall.fontSize
     )
-    val bottomFormatter = CartesianValueFormatter { _, x, _ ->
-        dateFormatter.format(Instant.ofEpochMilli(x.toLong()))
-    }
-    val zoomState = rememberVicoZoomState(initialZoom = Zoom.Content)
-    val oneDayStep = Duration.ofDays(1).toMillis().toDouble()
+    val chartZoomState = rememberVicoZoomState(initialZoom = Zoom.Content)
+    val oneDayStepMs = Duration.ofDays(1).toMillis().toDouble()
 
-    // 5) build the chart definition
     val chart = rememberCartesianChart(
-        // volume as columns on the right‐hand Y-axis
         rememberColumnCartesianLayer(
             columnProvider = ColumnCartesianLayer.ColumnProvider.series(
                 rememberLineComponent(
-                    fill  = fill(Color(barColor)),
+                    fill      = fill(Color(barColor)),
                     thickness = 0.1.dp
                 )
             ),
-            rangeProvider        = CartesianLayerRangeProvider.auto(),
-            verticalAxisPosition = Axis.Position.Vertical.End,
-            columnCollectionSpacing = 0.1.dp
+            rangeProvider          = CartesianLayerRangeProvider.auto(),
+            verticalAxisPosition   = Axis.Position.Vertical.End,
+            columnCollectionSpacing= 8.dp
         ),
-        // 1RM as line on the left‐hand Y-axis
         rememberLineCartesianLayer(
-            lineProvider = LineCartesianLayer.LineProvider.series(
+            lineProvider           = LineCartesianLayer.LineProvider.series(
                 LineCartesianLayer.Line(
                     LineCartesianLayer.LineFill.single(fill(Color(lineColor)))
                 )
             ),
-            rangeProvider        = CartesianLayerRangeProvider.auto(),
-            verticalAxisPosition = Axis.Position.Vertical.Start
+            rangeProvider          = CartesianLayerRangeProvider.auto(),
+            verticalAxisPosition   = Axis.Position.Vertical.Start
         ),
         startAxis  = VerticalAxis.rememberStart(
             titleComponent = axisTitleComponent,
-            title = "1RM"
+            title          = "1 RM"
         ),
         endAxis    = VerticalAxis.rememberEnd(
             titleComponent = axisTitleComponent,
-            title = "Volume"
+            title          = "Volume"
         ),
-        bottomAxis = HorizontalAxis.rememberBottom(valueFormatter = bottomFormatter),
+        bottomAxis = HorizontalAxis.rememberBottom(valueFormatter = xValueFormatter),
         legend     = rememberHorizontalLegend(
             items = { extraStore: ExtraStore ->
-                extraStore[HistoryLegendKey]?.let { labels ->
+                extraStore[historyLegendKey]?.let { labels ->
                     labels.forEachIndexed { index, labelText ->
                         add(
                             LegendItem(
-                                icon = shapeComponent(
+                                icon           = shapeComponent(
                                     fill  = fill(if (index == 0) Color(barColor) else Color(lineColor)),
                                     shape = CorneredShape.Pill
                                 ),
@@ -297,10 +274,9 @@ fun ExerciseHistoryPlot(
                 }
             }
         ),
-        getXStep = { oneDayStep }
+        getXStep = { oneDayStepMs }
     )
 
-    // 6) render the host with zoomState correctly attached
     Surface(
         modifier       = modifier,
         shape          = RoundedCornerShape(12.dp),
@@ -310,7 +286,7 @@ fun ExerciseHistoryPlot(
         CartesianChartHost(
             chart         = chart,
             modelProducer = modelProducer,
-            zoomState     = zoomState,
+            zoomState     = chartZoomState,
             modifier      = Modifier
                 .fillMaxWidth()
                 .height(200.dp)
@@ -318,21 +294,18 @@ fun ExerciseHistoryPlot(
     }
 }
 
-
 @Composable
 fun HistoricalExerciseCard(
     date: String,
     sets: List<Pair<String, String>>,
     modifier: Modifier = Modifier
 ) {
-    // Parse into Float/Int pairs
     val parsedSets: List<Pair<Float, Int>> = sets.mapNotNull { (w, r) ->
         val weight = w.toFloatOrNull()
         val reps   = r.toIntOrNull()
         if (weight != null && reps != null) weight to reps else null
     }
 
-    // Compute highest 1RM (as Float) and total volume
     val highest1RM = parsedSets
         .maxOfOrNull { (w, reps) -> w * (1 + 0.0333f * reps) }
         ?: 0f
@@ -411,38 +384,21 @@ fun HistoricalSetRow(
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
-@Preview(showBackground = true)
 @Composable
 fun Preview_ExerciseHistoryScreenContent() {
     FitnessappTheme {
         ExerciseHistoryScreenContent(
-            exerciseName = "Bench Press",
-            setGroups = listOf(
-                SetGroup(
-                    setGroupId = 1,
-                    workoutId = 1,
-                    exerciseId = 1,
-                    name = "Yesterday",
-                    weightUnit = WeightUnit.KG,
-                    exerciseName = "Bench Press",
-                    entries = listOf(
-                        SetEntry(weight = "50", reps = "8"),
-                        SetEntry(weight = "55", reps = "6")
-                    )
+            uiState = ExerciseHistoryUIState(
+                exerciseName    = "Bench Press",
+                historyItems    = listOf(
+                    SetGroupDisplayData("Yesterday", listOf("50" to "8", "55" to "6")),
+                    SetGroupDisplayData("2 Days Ago", listOf("60" to "5", "62.5" to "5", "65" to "4"))
                 ),
-                SetGroup(
-                    setGroupId = 2,
-                    workoutId = 1,
-                    exerciseId = 1,
-                    name = "2 Days Ago",
-                    weightUnit = WeightUnit.KG,
-                    exerciseName = "Bench Press",
-                    entries = listOf(
-                        SetEntry(weight = "60", reps = "5"),
-                        SetEntry(weight = "62.5", reps = "5"),
-                        SetEntry(weight = "65", reps = "4")
-                    )
-                )
+                xValues         = listOf(1.0, 2.0),
+                volumeSeries    = listOf(200.0, 800.0),
+                oneRepMaxSeries = listOf(13.3, 33.3),
+                isLoading       = false,
+                errorMessage    = null
             ),
             onBack = {}
         )
@@ -451,19 +407,20 @@ fun Preview_ExerciseHistoryScreenContent() {
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Preview(
-    name = "Light Mode",
-    uiMode = Configuration.UI_MODE_NIGHT_NO,
-    showBackground = true
+    name             = "Light Mode",
+    uiMode           = Configuration.UI_MODE_NIGHT_NO,
+    showBackground   = true
 )
 @Composable
 fun Preview_ExerciseHistoryScreenContent_Light() {
     Preview_ExerciseHistoryScreenContent()
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Preview(
-    name = "Dark Mode",
-    uiMode = Configuration.UI_MODE_NIGHT_YES,
-    showBackground = true
+    name             = "Dark Mode",
+    uiMode           = Configuration.UI_MODE_NIGHT_YES,
+    showBackground   = true
 )
 @Composable
 fun Preview_ExerciseHistoryScreenContent_Dark() {

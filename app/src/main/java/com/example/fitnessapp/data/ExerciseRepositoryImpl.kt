@@ -37,8 +37,8 @@ class ExerciseRepositoryImpl(
         }
     }
 
-    override fun getExerciseActivityById(exerciseId: Long): Flow<List<SetGroup>> =
-        setGroupDao.getSetGroupsWithEntriesByExerciseId(exerciseId)
+    override fun getExerciseActivityById(exerciseId: Long, excludeCurrentWorkout: Boolean): Flow<List<SetGroup>> =
+        setGroupDao.getSetGroupsWithEntriesByExerciseId(exerciseId=exerciseId)
             .map { groupWithEntriesList ->
                 groupWithEntriesList.map { it.toDomain() }
             }
