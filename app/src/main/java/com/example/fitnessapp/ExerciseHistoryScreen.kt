@@ -5,14 +5,17 @@ import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,8 +35,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -48,20 +53,30 @@ import com.example.fitnessapp.ui.theme.FitnessappTheme
 import com.example.fitnessapp.viewmodel.ExerciseHistoryViewModel
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberEnd
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
+import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
+import com.patrykandpatrick.vico.compose.common.component.rememberLineComponent
 import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
 import com.patrykandpatrick.vico.compose.common.component.shapeComponent
 import com.patrykandpatrick.vico.compose.common.fill
 import com.patrykandpatrick.vico.compose.common.rememberHorizontalLegend
 import com.patrykandpatrick.vico.core.cartesian.Zoom
+import com.patrykandpatrick.vico.core.cartesian.axis.Axis
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.core.cartesian.data.CartesianLayerRangeProvider
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
+import com.patrykandpatrick.vico.core.cartesian.data.columnSeries
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
+import com.patrykandpatrick.vico.core.cartesian.layer.ColumnCartesianLayer
+import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
+import com.patrykandpatrick.vico.core.common.Defaults
+import com.patrykandpatrick.vico.core.common.Fill
 import com.patrykandpatrick.vico.core.common.LegendItem
 import com.patrykandpatrick.vico.core.common.data.ExtraStore
 import com.patrykandpatrick.vico.core.common.shape.CorneredShape
@@ -69,6 +84,8 @@ import org.koin.androidx.compose.koinViewModel
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+//import kotlin.time.Duration
+import java.time.Duration
 
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -181,7 +198,6 @@ fun ExerciseHistoryTopAppBar(
     )
 }
 
-
 private val HistoryLegendKey = ExtraStore.Key<List<String>>()
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -190,104 +206,123 @@ fun ExerciseHistoryPlot(
     viewModel: ExerciseHistoryViewModel,
     modifier: Modifier = Modifier
 ) {
-    // collect the three series from the ViewModel
-    val xValues by viewModel.timestamps.collectAsState(initial = emptyList())        // :contentReference[oaicite:6]{index=6}
-    val volumeSeries by viewModel.volumes.collectAsState(initial = emptyList())      // :contentReference[oaicite:7]{index=7}
-    val oneRepMaxSeries by viewModel.oneRepMaxes.collectAsState(initial = emptyList()) // :contentReference[oaicite:8]{index=8}
+    // 1) collect the three series from the VM
+    val xValues          by viewModel.timestamps.collectAsState(initial = emptyList())
+    val volumeSeries    by viewModel.volumes.collectAsState(initial = emptyList())
+    val oneRepMaxSeries by viewModel.oneRepMaxes.collectAsState(initial = emptyList())
 
-    // debug log
     Log.d(
         "ExerciseHistoryPlot",
         "plot data → xValues: $xValues\nvolumeSeries: $volumeSeries\noneRepMaxSeries: $oneRepMaxSeries"
     )
 
-    val barColor = MaterialTheme.colorScheme.primary.toArgb()
-    val lineColor = MaterialTheme.colorScheme.secondary.toArgb()
+    // 2) prep colours & shared components
+    val barColor   = MaterialTheme.colorScheme.primary.toArgb()
+    val lineColor  = MaterialTheme.colorScheme.secondary.toArgb()
     val textComponent = rememberTextComponent(color = MaterialTheme.colorScheme.onSurface)
     val modelProducer = remember { CartesianChartModelProducer() }
 
-    // push data into Vico whenever any series changes
+    // 3) push data into the chart
     LaunchedEffect(xValues, volumeSeries, oneRepMaxSeries) {
         modelProducer.runTransaction {
-            if (xValues.isNotEmpty() &&
-                volumeSeries.size == xValues.size &&
-                oneRepMaxSeries.size == xValues.size
-            ) {
-                lineSeries {
-                    // first series: volume
-                    series(xValues, volumeSeries)
-                    // second series: 1RM
-                    series(xValues, oneRepMaxSeries)
-                }
-                extras { it[HistoryLegendKey] = listOf("Volume", "1RM") }
+            if (xValues.isNotEmpty() && volumeSeries.size == xValues.size) {
+                columnSeries { series(x = xValues, y = volumeSeries) }
+            }
+            if (xValues.isNotEmpty() && oneRepMaxSeries.size == xValues.size) {
+                lineSeries { series(x = xValues, y = oneRepMaxSeries) }
+            }
+            extras { extraStore ->
+                extraStore[HistoryLegendKey] = listOf("Volume", "1RM")
             }
         }
     }
 
-
-    // format bottom axis using real epoch‐ms values
+    // 4) axis formatters & zoom / step
     val dateFormatter = remember {
         DateTimeFormatter.ofPattern("dd MMM")
             .withZone(ZoneId.systemDefault())
     }
+    val axisTitleComponent = rememberTextComponent(
+        color    = MaterialTheme.colorScheme.onSurface,
+        textSize = MaterialTheme.typography.bodySmall.fontSize
+    )
     val bottomFormatter = CartesianValueFormatter { _, x, _ ->
         dateFormatter.format(Instant.ofEpochMilli(x.toLong()))
     }
     val zoomState = rememberVicoZoomState(initialZoom = Zoom.Content)
+    val oneDayStep = Duration.ofDays(1).toMillis().toDouble()
 
-    // UI tree
+    // 5) build the chart definition
+    val chart = rememberCartesianChart(
+        // volume as columns on the right‐hand Y-axis
+        rememberColumnCartesianLayer(
+            columnProvider = ColumnCartesianLayer.ColumnProvider.series(
+                rememberLineComponent(
+                    fill  = fill(Color(barColor)),
+                    thickness = 0.1.dp
+                )
+            ),
+            rangeProvider        = CartesianLayerRangeProvider.auto(),
+            verticalAxisPosition = Axis.Position.Vertical.End,
+            columnCollectionSpacing = 0.1.dp
+        ),
+        // 1RM as line on the left‐hand Y-axis
+        rememberLineCartesianLayer(
+            lineProvider = LineCartesianLayer.LineProvider.series(
+                LineCartesianLayer.Line(
+                    LineCartesianLayer.LineFill.single(fill(Color(lineColor)))
+                )
+            ),
+            rangeProvider        = CartesianLayerRangeProvider.auto(),
+            verticalAxisPosition = Axis.Position.Vertical.Start
+        ),
+        startAxis  = VerticalAxis.rememberStart(
+            titleComponent = axisTitleComponent,
+            title = "1RM"
+        ),
+        endAxis    = VerticalAxis.rememberEnd(
+            titleComponent = axisTitleComponent,
+            title = "Volume"
+        ),
+        bottomAxis = HorizontalAxis.rememberBottom(valueFormatter = bottomFormatter),
+        legend     = rememberHorizontalLegend(
+            items = { extraStore: ExtraStore ->
+                extraStore[HistoryLegendKey]?.let { labels ->
+                    labels.forEachIndexed { index, labelText ->
+                        add(
+                            LegendItem(
+                                icon = shapeComponent(
+                                    fill  = fill(if (index == 0) Color(barColor) else Color(lineColor)),
+                                    shape = CorneredShape.Pill
+                                ),
+                                labelComponent = textComponent,
+                                label          = labelText
+                            )
+                        )
+                    }
+                }
+            }
+        ),
+        getXStep = { oneDayStep }
+    )
+
+    // 6) render the host with zoomState correctly attached
     Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
+        modifier       = modifier,
+        shape          = RoundedCornerShape(12.dp),
         tonalElevation = 2.dp,
-        color = MaterialTheme.colorScheme.surfaceContainer
+        color          = MaterialTheme.colorScheme.surfaceContainer
     ) {
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(8.dp)
-        ) {
-            CartesianChartHost(
-                zoomState = zoomState,
-                chart = rememberCartesianChart(
-                    rememberLineCartesianLayer(),
-                    rememberLineCartesianLayer(),
-                    startAxis = VerticalAxis.rememberStart(),
-                    bottomAxis = HorizontalAxis.rememberBottom(valueFormatter = bottomFormatter),
-                    legend = rememberHorizontalLegend(
-                        items = { extraStore: ExtraStore ->
-                            // read your labels out of the extra store
-                            val labels: List<String> = extraStore[HistoryLegendKey]
-                                ?: return@rememberHorizontalLegend
-                            // use a simple for-loop to avoid the forEachIndexed ambiguity
-                            for (index in labels.indices) {
-                                val labelText = labels[index]
-                                add(
-                                    LegendItem(
-                                        icon = shapeComponent(
-                                            fill = fill(
-                                                if (index == 0) Color(barColor)
-                                                else Color(lineColor)
-                                            ),
-                                            shape = CorneredShape.Pill
-                                        ),
-                                        labelComponent = textComponent,
-                                        label = labelText
-                                    )
-                                )
-                            }
-                        }
-                    )
-                ),
-                modelProducer = modelProducer,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-            )
-        }
+        CartesianChartHost(
+            chart         = chart,
+            modelProducer = modelProducer,
+            zoomState     = zoomState,
+            modifier      = Modifier
+                .fillMaxWidth()
+                .height(200.dp)
+        )
     }
 }
-
 
 
 @Composable
