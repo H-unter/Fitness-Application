@@ -28,4 +28,21 @@ interface SetGroupDao {
     @Query("SELECT * FROM SetGroup WHERE exerciseId = :exerciseId")
     fun getSetGroupsWithEntriesByExerciseId(exerciseId: Long): Flow<List<SetGroupWithEntries>>
 
+    @Transaction
+    @Query("""
+      SELECT * FROM Workout
+       WHERE workoutId = (SELECT workoutId FROM SetGroup WHERE setGroupId = :setGroupId)
+    """)
+    fun getWorkoutForSetGroup(setGroupId: Int): Flow<WorkoutEntity>
+
+    @Query("""
+    SELECT workout.startTime
+      FROM Workout AS workout
+      JOIN SetGroup AS setGroup
+        ON workout.workoutId = setGroup.workoutId
+     WHERE setGroup.setGroupId = :setGroupId
+     LIMIT 1
+  """)
+    fun getWorkoutStartTimeForSetGroup(setGroupId: Int): Flow<Long>
+
 }

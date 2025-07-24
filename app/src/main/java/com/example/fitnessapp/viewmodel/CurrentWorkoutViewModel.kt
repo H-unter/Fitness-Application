@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.fitnessapp.data.CurrentWorkoutRepository
 import com.example.fitnessapp.data.ExerciseRepository
+import com.example.fitnessapp.data.SetEntry
 import com.example.fitnessapp.data.SetGroup
 import com.example.fitnessapp.data.SetEntryEntity
 import com.example.fitnessapp.data.WeightUnit
@@ -55,28 +56,30 @@ class CurrentWorkoutViewModel(
 
     // add an exercise (setGroup) by its id
     fun addExerciseById(exerciseId: Long) = viewModelScope.launch {
-
         val selectedExercise = exerciseRepository.getExerciseById(exerciseId) ?: return@launch
-        Log.d("CurrentWorkoutViewModel", "selectedExercise = $selectedExercise, exerciseId = $exerciseId, name = ${selectedExercise.name}")
         val workout = currentWorkout.value ?: return@launch
+
         val newSetGroup = SetGroup(
-            setGroupId = 0,
-            workoutId = workout.id,
-            exerciseId = exerciseId.toInt(),
-            name = selectedExercise.name,
-            weightUnit = WeightUnit.KG,
-            exerciseName = selectedExercise.name,
-            entries = listOf(
-                SetEntryEntity(
-                    setGroupId = 0, // auto generated primary key
-                    setIndex = 0,
-                    weight = 0f,
-                    reps = 0
+            setGroupId    = 0,
+            workoutId     = workout.id,
+            exerciseId    = exerciseId.toInt(),
+            name          = selectedExercise.name,
+            weightUnit    = WeightUnit.KG,
+            exerciseName  = selectedExercise.name,
+            entries       = listOf(
+                SetEntry(
+                    weight      = "0",
+                    reps        = "0",
+//                    setEntryId  = 0,
+//                    setGroupId  = 0,
+//                    setIndex    = 0
                 )
             )
         )
+
         workoutRepository.addExercise(newSetGroup)
     }
+
 
     // remove an exercise SetGroup
     fun removeExercise(exerciseIndex: Int) = viewModelScope.launch {
