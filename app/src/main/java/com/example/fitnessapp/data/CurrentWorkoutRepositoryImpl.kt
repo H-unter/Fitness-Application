@@ -70,7 +70,7 @@ class CurrentWorkoutRepositoryImpl(
         getCurrentWorkoutOrNull()
             .map { workout -> workout?.setGroups ?: emptyList() }
 
-    override suspend fun addExercise(setGroup: SetGroup) {
+    override suspend fun addSetGroupToWorkout(setGroup: SetGroup) {
         withContext(dispatcher) {
             val currentWorkout = _currentWorkout.value ?: return@withContext
 

@@ -13,7 +13,7 @@ interface CurrentWorkoutRepository {
     fun getCurrentWorkoutOrNull(): Flow<Workout?>
     fun getSetGroups(): Flow<List<SetGroup>>
 
-    suspend fun addExercise(setGroup: SetGroup) // add a setGroup to the current workout
+    suspend fun addSetGroupToWorkout(setGroup: SetGroup) // add a setGroup to the current workout
     suspend fun removeExercise(setGroup: SetGroup) // remove a setGroup from the current workout
 
     suspend fun addSetToExercise(exerciseIndex: Int) // add a set to a specific exercise
