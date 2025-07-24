@@ -22,6 +22,7 @@ import org.koin.dsl.module
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.fitnessapp.data.SetEntryDao
+import com.example.fitnessapp.viewmodel.WorkoutHistoryViewModel
 
 // https://developer.android.com/training/data-storage/room/prepopulate
 
@@ -67,9 +68,10 @@ val appModule = module {
         )
     }
 
-    // viewmodels
+    // view models
     viewModel { ExerciseListSelectionViewModel(exerciseRepository = get()) }
     viewModel { CurrentWorkoutViewModel(workoutRepository = get(), exerciseRepository = get()) }
+    viewModel { WorkoutHistoryViewModel(workoutDao = get()) }
     viewModel { ExerciseHistoryViewModel(exerciseRepository = get(), savedStateHandle = get()) }
 }
 

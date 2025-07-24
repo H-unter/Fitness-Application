@@ -9,6 +9,7 @@ import androidx.navigation.navArgument
 import com.example.fitnessapp.views.CurrentWorkoutScreen
 import com.example.fitnessapp.views.ExerciseListSelectionScreen
 import com.example.fitnessapp.views.ExerciseHistoryScreen
+import com.example.fitnessapp.views.WorkoutHistoryScreen
 
 @Composable
 fun AppNavigation() {
@@ -21,6 +22,10 @@ fun AppNavigation() {
 
         composable(Screens.ExerciseListSelectionScreen.route) {
             ExerciseListSelectionScreen(navController = navController)
+        }
+
+        composable(Screens.WorkoutHistoryScreen.route) {
+            WorkoutHistoryScreen(navController = navController)
         }
 
         composable(
