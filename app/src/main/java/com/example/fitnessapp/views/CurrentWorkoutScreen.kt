@@ -41,6 +41,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,6 +52,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.example.fitnessapp.BottomNavigationBar
@@ -58,6 +63,8 @@ import com.example.fitnessapp.navigation.Screens
 import com.example.fitnessapp.ui.theme.FitnessappTheme
 import com.example.fitnessapp.viewmodel.CurrentWorkoutViewModel
 import org.koin.androidx.compose.koinViewModel
+import kotlin.collections.remove
+import kotlin.text.get
 
 @Composable
 fun CurrentWorkoutScreen(
@@ -68,27 +75,73 @@ fun CurrentWorkoutScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     if (uiState.currentWorkout == null) {
-        Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No workout in progress")
-        }
+        EmptyWorkoutScreen(onStartWorkout = { viewModel.startNewWorkout() })
         return
     }
 
+    // Handle coming back from ExerciseListSelectionScreen
+    LaunchedEffect(navController) {
+        navController.currentBackStackEntry?.savedStateHandle?.let { handle ->
+            handle.get<Long>("selectedExerciseId")?.let { id ->
+                viewModel.addExerciseById(id)
+                // Clear the value after consuming it
+                handle.remove<Long>("selectedExerciseId")
+            }
+        }
+    }
+
     CurrentWorkoutScreenContent(
-        uiState                = uiState,
+        uiState = uiState,
         onExerciseWeightChange = viewModel::updateSetWeight,
-        onExerciseRepsChange   = viewModel::updateSetReps,
-        onAddSetToExercise     = viewModel::addSetToExercise,
-        onRemoveSetFromExercise= viewModel::removeSetFromExercise,
-        onAddExercise          = { navController.navigate("exerciseList") },
-        onRemoveExercise       = viewModel::removeExercise,
-        onNavigateToStats      = { id -> navController.navigate(Screens.ExerciseStatsScreen.createRoute(id)) },
-        onCompleteWorkout      = viewModel::finishCurrentWorkout,
-        modifier               = modifier
+        onExerciseRepsChange = viewModel::updateSetReps,
+        onAddSetToExercise = viewModel::addSetToExercise,
+        onRemoveSetFromExercise = viewModel::removeSetFromExercise,
+        onAddExercise = { navController.navigate(Screens.ExerciseListSelectionScreen.route) },
+        onRemoveExercise = viewModel::removeExercise,
+        onNavigateToStats = { id -> navController.navigate(Screens.ExerciseStatsScreen.createRoute(id)) },
+        onCompleteWorkout = viewModel::finishCurrentWorkout,
+        modifier = modifier
     )
 }
 
-
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EmptyWorkoutScreen(
+    onStartWorkout: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text="Empty Workout",
+                        style = MaterialTheme.typography.headlineSmall)
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            ))
+        },
+        bottomBar = { BottomNavigationBar() }
+    ) { paddingValues ->
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(paddingValues),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Nothing to See Here, Officer!")
+                ElevatedButton(onClick = onStartWorkout, modifier = Modifier.padding(top = 16.dp)) {
+                    Text("Start New Workout")
+                }
+            }
+        }
+    }
+}
 
 @Composable
 fun CurrentWorkoutScreenContent(
@@ -486,15 +539,43 @@ fun SetTextField(
 @Composable
 fun Preview_CurrentWorkoutScreenContent() {
     FitnessappTheme {
-        val sampleExercises = listOf(
-            "Bench Press" to listOf("50" to "8", "55" to "6"),
-            "Squat" to listOf("80" to "8", "85" to "6")
+        val sampleSetGroups = listOf(
+            SetGroup(
+                setGroupId = 1,
+                workoutId = 1,
+                exerciseId = 101,
+                name = "Bench Press",
+                weightUnit = com.example.fitnessapp.data.WeightUnit.KG,
+                exerciseName = "Bench Press",
+                entries = listOf(
+                    com.example.fitnessapp.data.SetEntry(weight = "50", reps = "8"),
+                    com.example.fitnessapp.data.SetEntry(weight = "55", reps = "6")
+                )
+            ),
+            SetGroup(
+                setGroupId = 2,
+                workoutId = 1,
+                exerciseId = 102,
+                name = "Squat",
+                weightUnit = com.example.fitnessapp.data.WeightUnit.KG,
+                exerciseName = "Squat",
+                entries = listOf(
+                    com.example.fitnessapp.data.SetEntry(weight = "80", reps = "8"),
+                    com.example.fitnessapp.data.SetEntry(weight = "85", reps = "6")
+                )
+            )
         )
-        val sampleSetGroups = emptyList<SetGroup>()
         val sampleUiState = CurrentWorkoutUIState(
-            currentWorkout = null,
+            currentWorkout = com.example.fitnessapp.data.Workout(
+                id = 1,
+                locationId = 1, // <-- use locationId, not gymId
+                startTime = 0L,
+                endTime = 0L,
+                isInProgress = true,
+                setGroups = sampleSetGroups
+            ),
             setGroups = sampleSetGroups,
-            exerciseUiList = sampleExercises
+            exerciseUiList = sampleSetGroups.map { it.exerciseName to it.entries.map { entry -> entry.weight to entry.reps } }
         )
         CurrentWorkoutScreenContent(
             uiState = sampleUiState,
@@ -510,6 +591,26 @@ fun Preview_CurrentWorkoutScreenContent() {
     }
 }
 
+@Composable
+fun Preview_NoWorkoutScreen() {
+    FitnessappTheme {
+        CurrentWorkoutScreenContent(
+            uiState = CurrentWorkoutUIState(
+                currentWorkout = null,
+                setGroups = emptyList(),
+                exerciseUiList = emptyList()
+            ),
+            onExerciseWeightChange = { _, _, _ -> },
+            onExerciseRepsChange = { _, _, _ -> },
+            onAddSetToExercise = { _ -> },
+            onRemoveSetFromExercise = { _, _ -> },
+            onAddExercise = {},
+            onRemoveExercise = { _ -> },
+            onNavigateToStats = {},
+            onCompleteWorkout = {}
+        )
+    }
+}
 
 @Preview(
     name = "Light Mode Preview",
@@ -529,4 +630,15 @@ fun Preview_CurrentWorkoutScreenContent_Light() {
 @Composable
 fun Preview_CurrentWorkoutScreenContent_Dark() {
     Preview_CurrentWorkoutScreenContent()
+}
+
+@Preview(
+    name = "Empty Workout Screen",
+    showBackground = true
+)
+@Composable
+fun Preview_EmptyWorkoutScreen() {
+    FitnessappTheme {
+        EmptyWorkoutScreen(onStartWorkout = {})
+    }
 }
