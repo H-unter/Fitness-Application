@@ -13,9 +13,6 @@ data class SetEntryEntity(
 )
 
 fun SetEntryEntity.toDomain(): SetEntry = SetEntry(
-//    setEntryId = setEntryId,
-//    setGroupId = setGroupId,
-//    setIndex   = setIndex,
     weight     = weight.toString(),
     reps       = reps.toString()
 )

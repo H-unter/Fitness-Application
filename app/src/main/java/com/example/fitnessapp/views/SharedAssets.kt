@@ -3,14 +3,18 @@ package com.example.fitnessapp.views
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemColors
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.example.fitnessapp.navigation.Screens
@@ -46,19 +50,49 @@ fun BottomNavigationBar(navController: NavHostController = rememberNavController
                 }
             )
 
-            // Keep your Account navigation item
+            NavigationBarItem(
+                selected = navController.currentDestination?.route == Screens.CurrentWorkoutScreen.route,
+                onClick = {
+                    navController.navigate(Screens.CurrentWorkoutScreen.route) {
+                        popUpTo(navController.graph.startDestinationId) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.FitnessCenter,
+                        contentDescription = "Current Workout"
+                    )
+                },
+                label = {
+                    Text(text = "Workout")
+                }
+            )
+
+
+            // settings
             NavigationBarItem(
                 selected = false, onClick = { /*TODO*/ },
                 icon = {
                     Icon(
-                        imageVector = Icons.Rounded.AccountCircle,
-                        contentDescription = "Account Screen"
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Settings Screen"
                     )
                 },
                 label = {
-                    Text(text = "Account")
+                    Text(text = "Settings")
                 }
             )
         }
     )
+}
+
+
+@Composable
+@Preview
+fun BottomNavigationBarPreview() {
+    BottomNavigationBar(navController = rememberNavController())
 }

@@ -65,7 +65,11 @@ class CurrentWorkoutRepositoryImpl(
                 }
             }
 
-
+    override suspend fun updateWorkoutGym(workoutId: Long, gymId: Int) {
+        withContext(dispatcher) {
+            workoutDao.updateWorkoutGym(workoutId.toInt(), gymId)
+        }
+    }
     override fun getSetGroups(): Flow<List<SetGroup>> =
         getCurrentWorkoutOrNull()
             .map { workout -> workout?.setGroups ?: emptyList() }

@@ -21,6 +21,9 @@ import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.example.fitnessapp.data.GymDao
+import com.example.fitnessapp.data.GymRepository
+import com.example.fitnessapp.data.GymRepositoryImpl
 import com.example.fitnessapp.data.SetEntryDao
 import com.example.fitnessapp.viewmodel.WorkoutHistoryViewModel
 
@@ -40,6 +43,7 @@ val appModule = module {
 
     // data access objects
     single<WorkoutDao>  { get<GymActivityDatabase>().workoutDao() }
+    single<GymDao>      { get<GymActivityDatabase>().gymDao() }
     single<SetGroupDao> { get<GymActivityDatabase>().setGroupDao() }
     single<SetEntryDao> { get<GymActivityDatabase>().setEntryDao() }
     single<ExerciseDao> { get<GymActivityDatabase>().exerciseDao() }
@@ -60,6 +64,12 @@ val appModule = module {
         )
     }
 
+    single<GymRepository> {
+        GymRepositoryImpl(
+            gymDao = get()
+        )
+    }
+
     single<ExerciseRepository> {
         ExerciseRepositoryImpl(
             exerciseDao = get(),
@@ -70,7 +80,7 @@ val appModule = module {
 
     // view models
     viewModel { ExerciseListSelectionViewModel(exerciseRepository = get()) }
-    viewModel { CurrentWorkoutViewModel(workoutRepository = get(), exerciseRepository = get()) }
+    viewModel { CurrentWorkoutViewModel(workoutRepository = get(), gymRepository = get(), exerciseRepository = get()) }
     viewModel { WorkoutHistoryViewModel(workoutDao = get()) }
     viewModel { ExerciseHistoryViewModel(exerciseRepository = get(), savedStateHandle = get()) }
 }

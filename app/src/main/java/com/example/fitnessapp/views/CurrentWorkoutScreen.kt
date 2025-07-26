@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -21,8 +22,9 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.EditLocationAlt
 import androidx.compose.material.icons.outlined.FitnessCenter
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -38,6 +40,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -53,6 +56,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
+import com.example.fitnessapp.data.Gym
+import com.example.fitnessapp.data.GymRepository
 import com.example.fitnessapp.data.SetGroup
 import com.example.fitnessapp.navigation.Screens
 import com.example.fitnessapp.ui.theme.FitnessappTheme
@@ -97,6 +103,8 @@ fun CurrentWorkoutScreen(
         onRemoveExercise = viewModel::removeExercise,
         onNavigateToStats = { id -> navController.navigate(Screens.ExerciseStatsScreen.createRoute(id)) },
         onCompleteWorkout = viewModel::finishCurrentWorkout,
+        onGymSelected = viewModel::selectGym,
+        onCreateGym = viewModel::createNewGym,
         modifier = modifier
     )
 }
@@ -153,29 +161,33 @@ fun CurrentWorkoutScreenContent(
     onRemoveExercise: (Int) -> Unit,
     onNavigateToStats: (Long) -> Unit,
     onCompleteWorkout: () -> Unit,
+    onGymSelected: (Int) -> Unit,
+    onCreateGym: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
         topBar = {
             WorkoutTopAppBar(
-                selectedGym = "Help",
-                onGymSelected = {},
+                selectedGym = uiState.selectedGym,
+                gyms = uiState.gyms,
+                onGymSelected = onGymSelected,
+                onCreateGym = onCreateGym,
                 onCompleteWorkout = onCompleteWorkout
             )
         },
         bottomBar = { BottomNavigationBar(navController = navController) }
     ) { paddingValues: PaddingValues ->
         CurrentWorkout(
-            exercises               = uiState.exerciseUiList,
-            setGroups               = uiState.setGroups,
-            onExerciseWeightChange  = onExerciseWeightChange,
-            onExerciseRepsChange    = onExerciseRepsChange,
-            onAddSetToExercise      = onAddSetToExercise,
+            exercises = uiState.exerciseUiList,
+            setGroups = uiState.setGroups,
+            onExerciseWeightChange = onExerciseWeightChange,
+            onExerciseRepsChange = onExerciseRepsChange,
+            onAddSetToExercise = onAddSetToExercise,
             onRemoveSetFromExercise = onRemoveSetFromExercise,
-            onAddExercise           = onAddExercise,
-            onRemoveExercise        = onRemoveExercise,
-            onNavigateToStats       = onNavigateToStats,
-            modifier                = modifier.padding(paddingValues)
+            onAddExercise = onAddExercise,
+            onRemoveExercise = onRemoveExercise,
+            onNavigateToStats = onNavigateToStats,
+            modifier = modifier.padding(paddingValues)
         )
     }
 }
@@ -348,13 +360,51 @@ fun Exercise(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkoutTopAppBar(
-    selectedGym: String = "Gym 1",
-    onGymSelected: (String) -> Unit = {},
+    selectedGym: Gym?,
+    gyms: List<Gym>,
+    onGymSelected: (Int) -> Unit = {},
+    onCreateGym: (String) -> Unit = {},
     onCompleteWorkout: () -> Unit = {}
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val gymOptions = listOf("Gym 1", "Gym 2", "Gym 3", "Gym 4")
+    var showAddGymDialog by remember { mutableStateOf(false) }
+    var newGymName by remember { mutableStateOf("") }
+
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+
+    // Dialog to add a new gym
+    if (showAddGymDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddGymDialog = false },
+            title = { Text("Add New Gym") },
+            text = {
+                OutlinedTextField(
+                    value = newGymName,
+                    onValueChange = { newGymName = it },
+                    label = { Text("Gym Name") },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (newGymName.isNotBlank()) {
+                            onCreateGym(newGymName)
+                            newGymName = ""
+                            showAddGymDialog = false
+                        }
+                    }
+                ) {
+                    Text("Add")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddGymDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     TopAppBar(
         title = {
@@ -364,30 +414,57 @@ fun WorkoutTopAppBar(
                     style = MaterialTheme.typography.headlineSmall
                 )
                 Text(
-                    text = "$selectedGym",
+                    text = selectedGym?.name ?: "No Gym Selected",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                ) // material 3 doesn't have a subtitle parameter yet in the non-expressive release
+                )
             }
         },
         navigationIcon = {
             IconButton(onClick = { expanded = true }) {
-                Icon(Icons.Default.Menu, contentDescription = "Select Gym")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.EditLocationAlt, contentDescription = "Select Gym")
+                    Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                }
             }
 
             DropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false }
             ) {
-                gymOptions.forEach { gym ->
+                if (gyms.isEmpty()) {
                     DropdownMenuItem(
-                        text = { Text(gym) },
-                        onClick = {
-                            onGymSelected(gym)
-                            expanded = false
-                        }
+                        text = { Text("No gyms available") },
+                        onClick = { }
                     )
+                } else {
+                    gyms.forEach { gym ->
+                        DropdownMenuItem(
+                            text = { Text(gym.name) },
+                            onClick = {
+                                onGymSelected(gym.id)
+                                expanded = false
+                            }
+                        )
+                    }
                 }
+
+                DropdownMenuItem(
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = null,
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                            Text("Add New Gym")
+                        }
+                    },
+                    onClick = {
+                        showAddGymDialog = true
+                        expanded = false
+                    }
+                )
             }
         },
         actions = {
@@ -404,7 +481,6 @@ fun WorkoutTopAppBar(
         )
     )
 }
-
 
 
 
@@ -535,6 +611,7 @@ fun SetTextField(
 }
 
 
+@Preview
 @Composable
 fun Preview_CurrentWorkoutScreenContent() {
     FitnessappTheme {
@@ -550,35 +627,31 @@ fun Preview_CurrentWorkoutScreenContent() {
                     com.example.fitnessapp.data.SetEntry(weight = "50", reps = "8"),
                     com.example.fitnessapp.data.SetEntry(weight = "55", reps = "6")
                 )
-            ),
-            SetGroup(
-                setGroupId = 2,
-                workoutId = 1,
-                exerciseId = 102,
-                name = "Squat",
-                weightUnit = com.example.fitnessapp.data.WeightUnit.KG,
-                exerciseName = "Squat",
-                entries = listOf(
-                    com.example.fitnessapp.data.SetEntry(weight = "80", reps = "8"),
-                    com.example.fitnessapp.data.SetEntry(weight = "85", reps = "6")
-                )
             )
         )
         val sampleUiState = CurrentWorkoutUIState(
             currentWorkout = com.example.fitnessapp.data.Workout(
                 id = 1,
-                locationId = 1, // <-- use locationId, not gymId
+                locationId = 1,
                 startTime = 0L,
                 endTime = 0L,
                 isInProgress = true,
                 setGroups = sampleSetGroups
             ),
             setGroups = sampleSetGroups,
-            exerciseUiList = sampleSetGroups.map { it.exerciseName to it.entries.map { entry -> entry.weight to entry.reps } }
+            exerciseUiList = sampleSetGroups.map {
+                it.exerciseName to it.entries.map { entry -> entry.weight to entry.reps }
+            },
+            gyms = emptyList(),
+            selectedGym = null
         )
+
+        // Use MockNavController instead of casting
+        val mockNavController = rememberNavController()
+
         CurrentWorkoutScreenContent(
             uiState = sampleUiState,
-            navController = {} as NavHostController,
+            navController = mockNavController,
             onExerciseWeightChange = { _, _, _ -> },
             onExerciseRepsChange = { _, _, _ -> },
             onAddSetToExercise = { _ -> },
@@ -586,29 +659,21 @@ fun Preview_CurrentWorkoutScreenContent() {
             onAddExercise = {},
             onRemoveExercise = { _ -> },
             onNavigateToStats = {},
-            onCompleteWorkout = {}
+            onCompleteWorkout = {},
+            onGymSelected = {},
+            onCreateGym = {}
         )
     }
 }
 
+@Preview
 @Composable
-fun Preview_NoWorkoutScreen() {
+fun Preview_EmptyWorkoutScreen() {
     FitnessappTheme {
-        CurrentWorkoutScreenContent(
-            uiState = CurrentWorkoutUIState(
-                currentWorkout = null,
-                setGroups = emptyList(),
-                exerciseUiList = emptyList()
-            ),
-            navController = {} as NavHostController,
-            onExerciseWeightChange = { _, _, _ -> },
-            onExerciseRepsChange = { _, _, _ -> },
-            onAddSetToExercise = { _ -> },
-            onRemoveSetFromExercise = { _, _ -> },
-            onAddExercise = {},
-            onRemoveExercise = { _ -> },
-            onNavigateToStats = {},
-            onCompleteWorkout = {}
+        val mockNavController = rememberNavController()
+        EmptyWorkoutScreen(
+            navController = mockNavController,
+            onStartWorkout = {}
         )
     }
 }
@@ -631,18 +696,4 @@ fun Preview_CurrentWorkoutScreenContent_Light() {
 @Composable
 fun Preview_CurrentWorkoutScreenContent_Dark() {
     Preview_CurrentWorkoutScreenContent()
-}
-
-@Preview(
-    name = "Empty Workout Screen",
-    showBackground = true
-)
-@Composable
-fun Preview_EmptyWorkoutScreen() {
-    FitnessappTheme {
-        EmptyWorkoutScreen(
-            navController = {} as NavHostController,
-            onStartWorkout = {}
-        )
-    }
 }

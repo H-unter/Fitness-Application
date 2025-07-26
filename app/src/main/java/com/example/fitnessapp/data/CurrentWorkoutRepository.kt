@@ -11,6 +11,7 @@ interface CurrentWorkoutRepository {
     suspend fun finishCurrentWorkout()
 
     fun getCurrentWorkoutOrNull(): Flow<Workout?>
+    suspend fun updateWorkoutGym(workoutId: Long, gymId: Int)
     fun getSetGroups(): Flow<List<SetGroup>>
 
     suspend fun addSetGroupToWorkout(setGroup: SetGroup) // add a setGroup to the current workout
