@@ -43,10 +43,10 @@ class CurrentWorkoutRepositoryImpl(
         )
     }
 
-    override suspend fun finishCurrentWorkout() {
+    override suspend fun finishCurrentWorkout(endTime: Long) {
         withContext(dispatcher) {
             _currentWorkout.value?.let { workoutEntity ->
-                workoutDao.markFinished(workoutEntity.workoutId)
+                workoutDao.markFinished(workoutEntity.workoutId, endTime)
             }
         }
     }

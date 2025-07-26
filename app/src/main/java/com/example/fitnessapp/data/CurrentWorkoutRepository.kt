@@ -8,7 +8,7 @@ interface CurrentWorkoutRepository {
     val currentWorkout: StateFlow<WorkoutEntity?>
 
     suspend fun startNewWorkout(gymId: Int = 0): Long
-    suspend fun finishCurrentWorkout()
+    suspend fun finishCurrentWorkout(endTime: Long = System.currentTimeMillis())
 
     fun getCurrentWorkoutOrNull(): Flow<Workout?>
     suspend fun updateWorkoutGym(workoutId: Long, gymId: Int)

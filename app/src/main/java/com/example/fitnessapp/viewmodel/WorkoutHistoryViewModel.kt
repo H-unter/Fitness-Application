@@ -33,11 +33,22 @@ class WorkoutHistoryViewModel(
                             .mapNotNull { it.exercise?.name }
                             .distinct()
 
+                        val gymName = workoutWithGroups.gym?.name
+
+                        val dateFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+                        val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
+                        val date = dateFormat.format(Date(workout.startTime))
+                        val startTime = timeFormat.format(Date(workout.startTime))
+
                         WorkoutHistoryItem(
-                            workoutId = workout.workoutId,
-                            date = formatDate(workout.startTime),
+                            id = workout.workoutId.toLong(),
+                            date = date,
+                            startTime = startTime,
+                            duration = calculateDuration(workout.startTime, workout.endTime),
                             exercises = exercises,
-                            duration = calculateDuration(workout.startTime, workout.endTime)
+                            gymName = gymName,
+                            rawStartTimeMs = workout.startTime,
+                            rawEndTimeMs = workout.endTime
                         )
                     }
                 }
@@ -47,13 +58,16 @@ class WorkoutHistoryViewModel(
         }
     }
 
-    private fun formatDate(timestamp: Long): String {
-        return SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
-            .format(Date(timestamp))
-    }
-
     private fun calculateDuration(start: Long, end: Long): String {
-        val durationMinutes = (end - start) / (1000 * 60)
-        return "${durationMinutes}min"
+        val durationSeconds = (end - start) / 1000
+        val hours = durationSeconds / 3600
+        val minutes = (durationSeconds % 3600) / 60
+        val seconds = durationSeconds % 60
+
+        return when {
+            hours > 0 -> String.format("%dh %02dm %02ds", hours, minutes, seconds)
+            minutes > 0 -> String.format("%dm %02ds", minutes, seconds)
+            else -> String.format("%ds", seconds)
+        }
     }
 }

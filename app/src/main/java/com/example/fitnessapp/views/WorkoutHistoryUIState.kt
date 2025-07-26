@@ -5,8 +5,12 @@ data class WorkoutHistoryUIState(
 )
 
 data class WorkoutHistoryItem(
-    val workoutId: Int,
+    val id: Long,
     val date: String,
+    val startTime: String,
+    val duration: String,
     val exercises: List<String>,
-    val duration: String
+    val gymName: String?,
+    val rawStartTimeMs: Long,
+    val rawEndTimeMs: Long
 )

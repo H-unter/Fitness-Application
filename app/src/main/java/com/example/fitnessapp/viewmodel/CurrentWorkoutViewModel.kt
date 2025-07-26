@@ -99,7 +99,7 @@ class CurrentWorkoutViewModel(
 
     // mark the current workout as finished
     fun finishCurrentWorkout() = viewModelScope.launch {
-        workoutRepository.finishCurrentWorkout()
+        workoutRepository.finishCurrentWorkout(System.currentTimeMillis())
     }
 
     // add an exercise (setGroup) by its id

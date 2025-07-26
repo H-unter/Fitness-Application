@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -58,11 +57,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.example.fitnessapp.data.Gym
-import com.example.fitnessapp.data.GymRepository
 import com.example.fitnessapp.data.SetGroup
 import com.example.fitnessapp.navigation.Screens
 import com.example.fitnessapp.ui.theme.FitnessappTheme
 import com.example.fitnessapp.viewmodel.CurrentWorkoutViewModel
+import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -168,6 +167,7 @@ fun CurrentWorkoutScreenContent(
     Scaffold(
         topBar = {
             WorkoutTopAppBar(
+                startTime = uiState.currentWorkout?.startTime ?: System.currentTimeMillis(),
                 selectedGym = uiState.selectedGym,
                 gyms = uiState.gyms,
                 onGymSelected = onGymSelected,
@@ -357,9 +357,36 @@ fun Exercise(
     }
 }
 
+
+@Composable
+fun ElapsedTimeDisplay(startTime: Long, modifier: Modifier = Modifier) {
+    var elapsedTime by remember { mutableStateOf(0L) }
+
+    // Update timer every second
+    LaunchedEffect(startTime) {
+        while (true) {
+            elapsedTime = System.currentTimeMillis() - startTime
+            delay(1000) // Update every second
+        }
+    }
+
+    val hours = elapsedTime / (1000 * 60 * 60)
+    val minutes = (elapsedTime % (1000 * 60 * 60)) / (1000 * 60)
+    val seconds = (elapsedTime % (1000 * 60)) / 1000
+
+    val formattedTime = String.format("%02d:%02d:%02d", hours, minutes, seconds)
+
+    Text(
+        text = formattedTime,
+        style = MaterialTheme.typography.titleLarge,
+        modifier = modifier
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkoutTopAppBar(
+    startTime: Long,
     selectedGym: Gym?,
     gyms: List<Gym>,
     onGymSelected: (Int) -> Unit = {},
@@ -413,11 +440,20 @@ fun WorkoutTopAppBar(
                     text = "Current Workout",
                     style = MaterialTheme.typography.headlineSmall
                 )
-                Text(
-                    text = selectedGym?.name ?: "No Gym Selected",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = selectedGym?.name ?: "No Gym Selected",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                    )
+                    ElapsedTimeDisplay(
+                        startTime = startTime,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
             }
         },
         navigationIcon = {
@@ -481,8 +517,6 @@ fun WorkoutTopAppBar(
         )
     )
 }
-
-
 
 
 

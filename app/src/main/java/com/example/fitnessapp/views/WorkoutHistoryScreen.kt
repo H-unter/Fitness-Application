@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -67,25 +68,69 @@ private fun WorkoutHistoryItem(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.Start
             ) {
+                workout.gymName?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                }
+
                 Text(
-                    text = workout.date,
+                    text = "${workout.date} ${workout.startTime}",
                     style = MaterialTheme.typography.titleMedium
                 )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Start
+            ) {
+
                 Text(
-                    text = workout.duration,
-                    style = MaterialTheme.typography.bodyMedium
+                    text = "Duration: ${workout.duration}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
                 )
             }
+
             Spacer(modifier = Modifier.height(8.dp))
+
+            // Third row: Exercises
             Text(
-                text = workout.exercises.joinToString(", "),
+                text = "Exercises: ${workout.exercises.joinToString(", ")}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
         }
     }
+}
+
+@Composable
+@Preview
+private fun WorkoutHistoryItemPreview() {
+    val sampleWorkout = WorkoutHistoryItem(
+        id = 1L,
+        date = "Oct 1, 2023",
+        startTime = "10:00 AM",
+        duration = "1h 30m",
+        gymName = "Fitness Center",
+        exercises = listOf("Bench Press", "Squats", "Deadlifts"),
+        rawStartTimeMs = System.currentTimeMillis() - 5400000, // 1.5 hours ago
+        rawEndTimeMs = System.currentTimeMillis()
+    )
+
+    WorkoutHistoryItem(
+        workout = sampleWorkout,
+        onItemClick = {}
+    )
 }
