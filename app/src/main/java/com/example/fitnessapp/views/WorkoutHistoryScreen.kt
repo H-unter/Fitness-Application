@@ -14,11 +14,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
 import com.example.fitnessapp.data.SetEntry
 import com.example.fitnessapp.data.SetGroup
 import com.example.fitnessapp.data.WeightUnit
+import com.example.fitnessapp.data.WorkoutDao
 import com.example.fitnessapp.ui.theme.FitnessappTheme
 import com.example.fitnessapp.viewmodel.WorkoutHistoryViewModel
+import kotlinx.coroutines.flow.StateFlow
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -29,6 +32,19 @@ fun WorkoutHistoryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    WorkoutHistoryScreenContent(
+        uiState = uiState,
+        navController = navController
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WorkoutHistoryScreenContent(
+    uiState: WorkoutHistoryUIState,
+    navController: NavHostController,
+    modifier: Modifier = Modifier
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -42,16 +58,14 @@ fun WorkoutHistoryScreen(
         bottomBar = { BottomNavigationBar(navController = navController) }
     ) { paddingValues ->
         LazyColumn(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxSize()
                 .padding(paddingValues),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             items(uiState.workouts) { workout ->
-                WorkoutHistoryItem(
-                    workout = workout
-                )
+                WorkoutHistoryItem(workout = workout)
             }
         }
     }
@@ -183,13 +197,15 @@ private fun ExerciseDetailCard(
     }
 }
 
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-@Preview
-private fun WorkoutHistoryItemPreview() {
+@Preview(showBackground = true)
+private fun WorkoutHistoryScreenPreview() {
+    // Create sample data
     val sampleSetEntries = listOf(
         SetEntry(weight = "60", reps = "10"),
-        SetEntry(weight = "70", reps = "8"),
-        SetEntry(weight = "75", reps = "6")
+        SetEntry(weight = "70", reps = "8")
     )
 
     val sampleSetGroups = listOf(
@@ -209,11 +225,7 @@ private fun WorkoutHistoryItemPreview() {
             name = "Squats",
             weightUnit = WeightUnit.KG,
             exerciseName = "Squats",
-            entries = listOf(
-                SetEntry(weight = "100", reps = "8"),
-                SetEntry(weight = "110", reps = "6"),
-                SetEntry(weight = "120", reps = "4")
-            )
+            entries = listOf(SetEntry(weight = "100", reps = "8"))
         )
     )
 
@@ -224,13 +236,16 @@ private fun WorkoutHistoryItemPreview() {
         duration = "1h 30m",
         gymName = "Fitness Center",
         setGroups = sampleSetGroups,
-        rawStartTimeMs = System.currentTimeMillis() - 5400000, // 1.5 hours ago
+        rawStartTimeMs = System.currentTimeMillis() - 5400000,
         rawEndTimeMs = System.currentTimeMillis()
     )
 
+    val sampleState = WorkoutHistoryUIState(workouts = listOf(sampleWorkout))
+
     FitnessappTheme {
-        WorkoutHistoryItem(
-            workout = sampleWorkout
+        WorkoutHistoryScreenContent(
+            uiState = sampleState,
+            navController = rememberNavController()
         )
     }
 }
