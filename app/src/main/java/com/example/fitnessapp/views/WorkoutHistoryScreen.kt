@@ -9,10 +9,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.example.fitnessapp.data.SetEntry
+import com.example.fitnessapp.data.SetGroup
+import com.example.fitnessapp.data.WeightUnit
+import com.example.fitnessapp.ui.theme.FitnessappTheme
 import com.example.fitnessapp.viewmodel.WorkoutHistoryViewModel
 import org.koin.androidx.compose.koinViewModel
 
@@ -22,7 +27,7 @@ fun WorkoutHistoryScreen(
     navController: NavHostController,
     viewModel: WorkoutHistoryViewModel = koinViewModel()
 ) {
-    val uiState = viewModel.uiState.collectAsStateWithLifecycle()  // Remove 'by'
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -41,12 +46,11 @@ fun WorkoutHistoryScreen(
                 .fillMaxSize()
                 .padding(paddingValues),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            items(uiState.value.workouts) { workout ->  // Add .value here
+            items(uiState.workouts) { workout ->
                 WorkoutHistoryItem(
-                    workout = workout,
-                    onItemClick = { /* Optional: Navigate to workout details */ }
+                    workout = workout
                 )
             }
         }
@@ -55,20 +59,16 @@ fun WorkoutHistoryScreen(
 
 @Composable
 private fun WorkoutHistoryItem(
-    workout: WorkoutHistoryItem,
-    onItemClick: () -> Unit
-) {
+    workout: WorkoutHistoryItem) {
     Surface(
         modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onItemClick),
+            .fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         tonalElevation = 2.dp
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Start
@@ -83,33 +83,101 @@ private fun WorkoutHistoryItem(
                 }
 
                 Text(
-                    text = "${workout.date} ${workout.startTime}",
+                    text = workout.date,
                     style = MaterialTheme.typography.titleMedium
                 )
             }
 
             Spacer(modifier = Modifier.height(4.dp))
 
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Start
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                Text(
+                    text = workout.startTime,
+                    style = MaterialTheme.typography.bodyMedium
+                )
 
                 Text(
                     text = "Duration: ${workout.duration}",
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+                    fontWeight = FontWeight.Medium
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Third row: Exercises
+            workout.setGroups.groupBy { it.exerciseName }.forEach { (exerciseName, groups) ->
+                ExerciseDetailCard(exerciseName, groups)
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExerciseDetailCard(
+    exerciseName: String,
+    groups: List<SetGroup>,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        tonalElevation = 1.dp,
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
             Text(
-                text = "Exercises: ${workout.exercises.joinToString(", ")}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                text = exerciseName,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Display each set entry for this exercise
+            val allEntries = groups.flatMap { it.entries }
+            allEntries.forEachIndexed { index, entry ->
+                val weight = entry.weight.toFloatOrNull() ?: 0f
+                val reps = entry.reps.toIntOrNull() ?: 0
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Set ${index + 1}",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Text(
+                        text = "${weight.toInt()}kg × $reps reps",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            // Calculate and display total volume
+            val totalVolume = allEntries.sumOf {
+                val weight = it.weight.toFloatOrNull() ?: 0f
+                val reps = it.reps.toIntOrNull() ?: 0
+                (weight * reps).toInt()
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Total volume: $totalVolume kg",
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.primary
             )
         }
     }
@@ -118,19 +186,51 @@ private fun WorkoutHistoryItem(
 @Composable
 @Preview
 private fun WorkoutHistoryItemPreview() {
+    val sampleSetEntries = listOf(
+        SetEntry(weight = "60", reps = "10"),
+        SetEntry(weight = "70", reps = "8"),
+        SetEntry(weight = "75", reps = "6")
+    )
+
+    val sampleSetGroups = listOf(
+        SetGroup(
+            setGroupId = 1,
+            workoutId = 1,
+            exerciseId = 1,
+            name = "Bench Press",
+            weightUnit = WeightUnit.KG,
+            exerciseName = "Bench Press",
+            entries = sampleSetEntries
+        ),
+        SetGroup(
+            setGroupId = 2,
+            workoutId = 1,
+            exerciseId = 2,
+            name = "Squats",
+            weightUnit = WeightUnit.KG,
+            exerciseName = "Squats",
+            entries = listOf(
+                SetEntry(weight = "100", reps = "8"),
+                SetEntry(weight = "110", reps = "6"),
+                SetEntry(weight = "120", reps = "4")
+            )
+        )
+    )
+
     val sampleWorkout = WorkoutHistoryItem(
         id = 1L,
         date = "Oct 1, 2023",
         startTime = "10:00 AM",
         duration = "1h 30m",
         gymName = "Fitness Center",
-        exercises = listOf("Bench Press", "Squats", "Deadlifts"),
+        setGroups = sampleSetGroups,
         rawStartTimeMs = System.currentTimeMillis() - 5400000, // 1.5 hours ago
         rawEndTimeMs = System.currentTimeMillis()
     )
 
-    WorkoutHistoryItem(
-        workout = sampleWorkout,
-        onItemClick = {}
-    )
+    FitnessappTheme {
+        WorkoutHistoryItem(
+            workout = sampleWorkout
+        )
+    }
 }

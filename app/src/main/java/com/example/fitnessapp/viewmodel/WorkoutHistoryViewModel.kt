@@ -2,14 +2,15 @@ package com.example.fitnessapp.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.fitnessapp.data.SetGroup
 import com.example.fitnessapp.data.WorkoutDao
+import com.example.fitnessapp.data.toDomain
 import com.example.fitnessapp.views.WorkoutHistoryItem
 import com.example.fitnessapp.views.WorkoutHistoryUIState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -22,39 +23,41 @@ class WorkoutHistoryViewModel(
     val uiState: StateFlow<WorkoutHistoryUIState> = _uiState.asStateFlow()
 
     init {
+        loadWorkoutHistory()
+    }
+
+    private fun loadWorkoutHistory() {
         viewModelScope.launch {
-            workoutDao.getWorkouts()
-                .map { workouts ->
-                    workouts.map { workout ->
-                        val workoutWithGroups = workoutDao.getWorkoutWithSetGroupsAndEntries(workout.workoutId)
-                            .first()
+            try {
+                val workouts = workoutDao.getWorkouts().first()
 
-                        val exercises = workoutWithGroups.setGroups
-                            .mapNotNull { it.exercise?.name }
-                            .distinct()
+                val historyItems = workouts.map { workout ->
+                    val workoutWithGroups = workoutDao.getWorkoutWithSetGroupsAndEntries(workout.workoutId).first()
+                    val setGroups = workoutWithGroups.setGroups.map { it.toDomain() }
 
-                        val gymName = workoutWithGroups.gym?.name
+                    // format dates
+                    val dateFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+                    val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
+                    val date = dateFormat.format(Date(workout.startTime))
+                    val startTime = timeFormat.format(Date(workout.startTime))
 
-                        val dateFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
-                        val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
-                        val date = dateFormat.format(Date(workout.startTime))
-                        val startTime = timeFormat.format(Date(workout.startTime))
-
-                        WorkoutHistoryItem(
-                            id = workout.workoutId.toLong(),
-                            date = date,
-                            startTime = startTime,
-                            duration = calculateDuration(workout.startTime, workout.endTime),
-                            exercises = exercises,
-                            gymName = gymName,
-                            rawStartTimeMs = workout.startTime,
-                            rawEndTimeMs = workout.endTime
-                        )
-                    }
+                    // Create the WorkoutHistoryItem
+                    WorkoutHistoryItem(
+                        id = workout.workoutId.toLong(), // Ensure ID is Long
+                        date = date,
+                        startTime = startTime,
+                        duration = calculateDuration(workout.startTime, workout.endTime),
+                        setGroups = setGroups,
+                        gymName = workoutWithGroups.gym?.name,
+                        rawStartTimeMs = workout.startTime,
+                        rawEndTimeMs = workout.endTime
+                    )
                 }
-                .collect { items ->
-                    _uiState.value = WorkoutHistoryUIState(workouts = items)
-                }
+
+                _uiState.value = WorkoutHistoryUIState(workouts = historyItems)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 

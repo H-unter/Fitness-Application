@@ -1,5 +1,7 @@
 package com.example.fitnessapp.views
 
+import com.example.fitnessapp.data.SetGroup
+
 data class WorkoutHistoryUIState(
     val workouts: List<WorkoutHistoryItem> = emptyList()
 )
@@ -9,7 +11,7 @@ data class WorkoutHistoryItem(
     val date: String,
     val startTime: String,
     val duration: String,
-    val exercises: List<String>,
+    val setGroups: List<SetGroup>,
     val gymName: String?,
     val rawStartTimeMs: Long,
     val rawEndTimeMs: Long
