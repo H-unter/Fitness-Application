@@ -1,12 +1,35 @@
 package com.example.fitnessapp.views
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items  // Add this import
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -15,16 +38,14 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.example.fitnessapp.data.HealthConnectManager
 import com.example.fitnessapp.data.SetEntry
 import com.example.fitnessapp.data.SetGroup
 import com.example.fitnessapp.data.WeightUnit
-import com.example.fitnessapp.data.WorkoutDao
 import com.example.fitnessapp.ui.theme.FitnessappTheme
 import com.example.fitnessapp.viewmodel.WorkoutHistoryViewModel
-import kotlinx.coroutines.flow.StateFlow
 import org.koin.androidx.compose.koinViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkoutHistoryScreen(
     navController: NavHostController,
@@ -32,9 +53,38 @@ fun WorkoutHistoryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    // Create the permissions launcher (exactly like docs)
+    val requestPermissions = rememberLauncherForActivityResult(
+        viewModel.requestPermissionActivityContract
+    ) { granted ->
+        if (granted.containsAll(HealthConnectManager.PERMISSIONS)) {
+            // Permissions successfully granted
+            Log.d("WorkoutHistory", "Permissions successfully granted")
+            viewModel.checkAndRequestPermissions()
+        } else {
+            // Lack of required permissions
+            Log.d("WorkoutHistory", "Lack of required permissions")
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.checkAndRequestPermissions()
+    }
+
+    // If permissions not granted, request them
+    if (uiState.permissionsChecked && !uiState.permissionsGranted) {
+        LaunchedEffect(Unit) {
+            Log.d("WorkoutHistory", "Launching permission request...")
+            requestPermissions.launch(HealthConnectManager.PERMISSIONS)
+        }
+    }
+
     WorkoutHistoryScreenContent(
         uiState = uiState,
-        navController = navController
+        navController = navController,
+        onRequestPermissions = {
+            requestPermissions.launch(HealthConnectManager.PERMISSIONS)
+        }
     )
 }
 
@@ -43,12 +93,42 @@ fun WorkoutHistoryScreen(
 fun WorkoutHistoryScreenContent(
     uiState: WorkoutHistoryUIState,
     navController: NavHostController,
+    onRequestPermissions: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Workout History") },
+                title = {
+                    Column {
+                        Text("Workout History")
+                    }
+                },
+                navigationIcon = {
+                    if (uiState.permissionsGranted) {
+                        IconButton(
+                            onClick = {},
+                            enabled = false
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CloudDone,
+                                contentDescription = "Health Connect synced",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    } else {
+                        IconButton(
+                            onClick = { onRequestPermissions() },
+                            enabled = true
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CloudOff,
+                                contentDescription = "Request Health Connect permissions",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -57,15 +137,29 @@ fun WorkoutHistoryScreenContent(
         },
         bottomBar = { BottomNavigationBar(navController = navController) }
     ) { paddingValues ->
-        LazyColumn(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            items(uiState.workouts) { workout ->
-                WorkoutHistoryItem(workout = workout)
+        if (uiState.workouts.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = androidx.compose.ui.Alignment.Center
+            ) {
+                Text(
+                    text = "No workouts to show, get lifting!",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                items(uiState.workouts) { workout ->
+                    WorkoutHistoryItem(workout = workout)
+                }
             }
         }
     }
@@ -200,14 +294,12 @@ private fun ExerciseDetailCard(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-@Preview(showBackground = true)
-private fun WorkoutHistoryScreenPreview() {
-    // Create sample data
+@Preview(name = "Permissions Granted", showBackground = true)
+private fun WorkoutHistoryScreenPreview_PermissionsGranted() {
     val sampleSetEntries = listOf(
         SetEntry(weight = "60", reps = "10"),
         SetEntry(weight = "70", reps = "8")
     )
-
     val sampleSetGroups = listOf(
         SetGroup(
             setGroupId = 1,
@@ -217,18 +309,8 @@ private fun WorkoutHistoryScreenPreview() {
             weightUnit = WeightUnit.KG,
             exerciseName = "Bench Press",
             entries = sampleSetEntries
-        ),
-        SetGroup(
-            setGroupId = 2,
-            workoutId = 1,
-            exerciseId = 2,
-            name = "Squats",
-            weightUnit = WeightUnit.KG,
-            exerciseName = "Squats",
-            entries = listOf(SetEntry(weight = "100", reps = "8"))
         )
     )
-
     val sampleWorkout = WorkoutHistoryItem(
         id = 1L,
         date = "Oct 1, 2023",
@@ -239,9 +321,28 @@ private fun WorkoutHistoryScreenPreview() {
         rawStartTimeMs = System.currentTimeMillis() - 5400000,
         rawEndTimeMs = System.currentTimeMillis()
     )
+    val sampleState = WorkoutHistoryUIState(
+        workouts = listOf(sampleWorkout),
+        permissionsGranted = true,
+        permissionsChecked = true
+    )
+    FitnessappTheme {
+        WorkoutHistoryScreenContent(
+            uiState = sampleState,
+            navController = rememberNavController()
+        )
+    }
+}
 
-    val sampleState = WorkoutHistoryUIState(workouts = listOf(sampleWorkout))
-
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+@Preview(name = "Permissions Not Granted", showBackground = true)
+private fun WorkoutHistoryScreenPreview_PermissionsNotGranted() {
+    val sampleState = WorkoutHistoryUIState(
+        workouts = emptyList(),
+        permissionsGranted = false,
+        permissionsChecked = true
+    )
     FitnessappTheme {
         WorkoutHistoryScreenContent(
             uiState = sampleState,

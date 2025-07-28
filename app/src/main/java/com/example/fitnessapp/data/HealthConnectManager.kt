@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.health.connect.datatypes.ExerciseSegmentType
 import android.os.Build
+import android.util.Log
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.compose.runtime.mutableStateOf
 import androidx.health.connect.client.HealthConnectClient
@@ -22,6 +23,9 @@ import kotlinx.coroutines.flow.flow
 import java.io.IOException
 import java.time.Instant
 import java.time.ZonedDateTime
+import kotlin.collections.containsAll
+import kotlin.text.compareTo
+import kotlin.toString
 
 const val MIN_SUPPORTED_SDK = Build.VERSION_CODES.O_MR1
 
@@ -33,22 +37,58 @@ const val MIN_SUPPORTED_SDK = Build.VERSION_CODES.O_MR1
  * https://github.com/android/android-health-connect-codelab/blob/main/finished/src/main/java/com/example/healthconnect/codelab/data/HealthConnectManager.kt
  */
 class HealthConnectManager(private val context: Context) {
-    private val healthConnectClient by lazy { HealthConnectClient.getOrCreate(context) }
+
+    internal val healthConnectClient by lazy { HealthConnectClient.getOrCreate(context) }
+
+    companion object {
+        private const val TAG = "HealthConnectManager"
+
+        // Create a set of permissions for required data types (exactly like docs)
+        val PERMISSIONS = setOf(
+            HealthPermission.getReadPermission(ExerciseSessionRecord::class),
+            HealthPermission.getWritePermission(ExerciseSessionRecord::class)
+        )
+    }
+
+    fun getPermissionLauncher(): ActivityResultContract<Set<String>, Set<String>> {
+        return PermissionController.createRequestPermissionResultContract()
+    }
 
     // Permissions needed for workout data
-    suspend fun hasAllPermissions(permissions: Set<String>): Boolean {
-        return healthConnectClient.permissionController.getGrantedPermissions().containsAll(permissions)
+    suspend fun hasAllPermissions(): Boolean {
+        return try {
+            val granted = healthConnectClient.permissionController.getGrantedPermissions()
+            Log.d(TAG, "Granted permissions: $granted")
+            Log.d(TAG, "Required permissions: $PERMISSIONS")
+            granted.containsAll(PERMISSIONS)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking permissions", e)
+            false
+        }
     }
 
     // Check Health Connect availability
     var availability = mutableStateOf(HealthConnectAvailability.NOT_SUPPORTED)
         private set
 
-    fun checkAvailability() {
-        availability.value = when {
-            HealthConnectClient.getSdkStatus(context) == SDK_AVAILABLE -> HealthConnectAvailability.INSTALLED
-            isSupported() -> HealthConnectAvailability.NOT_INSTALLED
-            else -> HealthConnectAvailability.NOT_SUPPORTED
+    fun checkAvailability(): HealthConnectAvailability {
+        val sdkStatus = HealthConnectClient.getSdkStatus(context)
+        Log.d(TAG, "SDK Status: $sdkStatus")
+        Log.d(TAG, "Is supported (API level): ${isSupported()}")
+
+        return when {
+            sdkStatus == SDK_AVAILABLE -> {
+                Log.d(TAG, "Health Connect is INSTALLED")
+                HealthConnectAvailability.INSTALLED
+            }
+            isSupported() -> {
+                Log.d(TAG, "Health Connect is NOT_INSTALLED but supported")
+                HealthConnectAvailability.NOT_INSTALLED
+            }
+            else -> {
+                Log.d(TAG, "Health Connect is NOT_SUPPORTED")
+                HealthConnectAvailability.NOT_SUPPORTED
+            }
         }
     }
 
@@ -61,51 +101,50 @@ class HealthConnectManager(private val context: Context) {
     }
 
     @SuppressLint("RestrictedApi")
-    suspend fun writeWorkoutToHealthConnect(workout: WorkoutWithSetGroupsAndEntries): Result<Unit> =
-        try {
-            if (availability.value != HealthConnectAvailability.INSTALLED || !hasRequiredPermissions()) {
-                Result.failure(Exception("Health Connect not available or missing permissions"))
-            } else {
-                val start = ZonedDateTime.ofInstant(
-                    Instant.ofEpochMilli(workout.workout.startTime),
-                    ZonedDateTime.now().zone
-                )
-                val end = ZonedDateTime.ofInstant(
-                    Instant.ofEpochMilli(workout.workout.endTime),
-                    ZonedDateTime.now().zone
-                )
-                val sessionRecord = ExerciseSessionRecord(
-                    metadata = Metadata.manualEntry(),
-                    startTime = start.toInstant(),
-                    startZoneOffset = start.offset,
-                    endTime = end.toInstant(),
-                    endZoneOffset = end.offset,
-                    exerciseType = ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING,
-                    title = workout.gym?.name
-                )
-                healthConnectClient.insertRecords(listOf(sessionRecord))
-                Result.success(Unit)
+    suspend fun writeWorkoutToHealthConnect(workout: WorkoutWithSetGroupsAndEntries): Result<Unit> {
+        return try {
+            Log.d(TAG, "Attempting to write workout: ${workout.workout.workoutId}")
+
+            if (availability.value != HealthConnectAvailability.INSTALLED) {
+                Log.e(TAG, "Health Connect not installed")
+                return Result.failure(Exception("Health Connect not available"))
             }
+
+            if (!hasRequiredPermissions()) {
+                Log.e(TAG, "Missing required permissions")
+                return Result.failure(Exception("Missing Health Connect permissions"))
+            }
+
+            val start = ZonedDateTime.ofInstant(
+                Instant.ofEpochMilli(workout.workout.startTime),
+                ZonedDateTime.now().zone
+            )
+
+            val end = ZonedDateTime.ofInstant(
+                Instant.ofEpochMilli(workout.workout.endTime),
+                ZonedDateTime.now().zone
+            )
+
+            val sessionRecord = ExerciseSessionRecord(
+                metadata = Metadata.manualEntry(),
+                startTime = start.toInstant(),
+                startZoneOffset = start.offset,
+                endTime = end.toInstant(),
+                endZoneOffset = end.offset,
+                exerciseType = ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING,
+                title = workout.gym?.name
+            )
+
+            Log.d(TAG, "Writing session: ${sessionRecord.title}, duration: ${sessionRecord.endTime.epochSecond - sessionRecord.startTime.epochSecond}s")
+
+            healthConnectClient.insertRecords(listOf(sessionRecord))
+            Log.d(TAG, "Successfully wrote workout to Health Connect")
+            Result.success(Unit)
         } catch (e: Exception) {
+            Log.e(TAG, "Failed to write workout to Health Connect", e)
             Result.failure(e)
         }
-
-    private fun createSegmentsForSetGroup(setGroupWithEntries: SetGroupWithEntries): List<ExerciseSegment> {
-        val segmentType = ExerciseSegmentType.EXERCISE_SEGMENT_TYPE_WEIGHTLIFTING
-        return setGroupWithEntries.entries.mapIndexed { index, setEntry ->
-            val setDurationMs = 60_000L
-            val setStartTime = Instant.ofEpochMilli(System.currentTimeMillis() + (index * setDurationMs))
-            val setEndTime = Instant.ofEpochMilli(setStartTime.toEpochMilli() + setDurationMs)
-            val reps = setEntry.reps // Assuming reps is Int
-            ExerciseSegment(
-                startTime = setStartTime,
-                endTime = setEndTime,
-                segmentType = segmentType,
-                repetitions = reps
-            )
-        }
     }
-
 
     // Read workout sessions from Health Connect
     suspend fun readWorkoutSessions(
@@ -126,10 +165,6 @@ class HealthConnectManager(private val context: Context) {
     }
 
     private fun isSupported() = Build.VERSION.SDK_INT >= MIN_SUPPORTED_SDK
-
-    fun requestPermissionsActivityContract(): ActivityResultContract<Set<String>, Set<String>> {
-        return PermissionController.createRequestPermissionResultContract()
-    }
 
     suspend fun getChangesToken(): String {
         return healthConnectClient.getChangesToken(

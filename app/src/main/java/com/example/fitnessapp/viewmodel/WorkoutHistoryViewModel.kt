@@ -1,7 +1,13 @@
 package com.example.fitnessapp.viewmodel
 
+import android.util.Log
+import androidx.health.connect.client.PermissionController
+import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.fitnessapp.data.HealthConnectAvailability
+import com.example.fitnessapp.data.HealthConnectManager
 import com.example.fitnessapp.data.SetGroup
 import com.example.fitnessapp.data.WorkoutDao
 import com.example.fitnessapp.data.toDomain
@@ -15,17 +21,23 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.collections.containsAll
 
 class WorkoutHistoryViewModel(
-    private val workoutDao: WorkoutDao
+    private val workoutDao: WorkoutDao,
+    private val healthConnectManager: HealthConnectManager
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(WorkoutHistoryUIState())
     val uiState: StateFlow<WorkoutHistoryUIState> = _uiState.asStateFlow()
 
+    companion object {
+        private const val TAG = "WorkoutHistoryVM"
+    }
+    val requestPermissionActivityContract = PermissionController.createRequestPermissionResultContract()
+
     init {
         loadWorkoutHistory()
     }
-
     private fun loadWorkoutHistory() {
         viewModelScope.launch {
             try {
@@ -60,6 +72,70 @@ class WorkoutHistoryViewModel(
             }
         }
     }
+
+    suspend fun checkPermissionsAndRun() {
+        val granted = healthConnectManager.healthConnectClient.permissionController.getGrantedPermissions()
+        if (granted.containsAll(HealthConnectManager.PERMISSIONS)) {
+            // Permissions already granted; proceed with inserting or reading data
+            syncHistoricalWorkoutsToHealthConnect()
+        } else {
+            // Will need to request permissions via launcher
+            Log.d(TAG, "Permissions missing, need to request")
+        }
+    }
+
+    fun checkAndRequestPermissions() {
+        viewModelScope.launch {
+            try {
+                val availability = healthConnectManager.checkAvailability()
+                Log.d(TAG, "Health Connect availability: $availability")
+
+                if (availability != HealthConnectAvailability.INSTALLED) {
+                    _uiState.value = _uiState.value.copy(
+                        permissionsGranted = false,
+                        permissionsChecked = true
+                    )
+                    return@launch
+                }
+
+                checkPermissionsAndRun()
+
+                val hasPermissions = healthConnectManager.hasAllPermissions()
+                _uiState.value = _uiState.value.copy(
+                    permissionsGranted = hasPermissions,
+                    permissionsChecked = true
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Error checking permissions", e)
+                _uiState.value = _uiState.value.copy(
+                    permissionsGranted = false,
+                    permissionsChecked = true
+                )
+            }
+        }
+    }
+    fun syncHistoricalWorkoutsToHealthConnect() {
+        viewModelScope.launch {
+            try {
+                val workouts = workoutDao.getWorkouts().first()
+
+                for (workout in workouts) {
+                    // Skip workouts in progress
+                    if (workout.isInProgress) continue
+
+                    val workoutWithGroups = workoutDao.getWorkoutWithSetGroupsAndEntries(workout.workoutId).first()
+
+                    // Write to Health Connect
+                    healthConnectManager.writeWorkoutToHealthConnect(workoutWithGroups)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+
+    fun getPermissionLauncher() = healthConnectManager.getPermissionLauncher()
 
     private fun calculateDuration(start: Long, end: Long): String {
         val durationSeconds = (end - start) / 1000

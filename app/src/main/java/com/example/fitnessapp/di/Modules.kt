@@ -1,6 +1,5 @@
 package com.example.fitnessapp.di
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.room.Room
 import com.example.fitnessapp.data.CurrentWorkoutRepository
 import com.example.fitnessapp.data.CurrentWorkoutRepositoryImpl
@@ -8,24 +7,24 @@ import com.example.fitnessapp.data.ExerciseDao
 import com.example.fitnessapp.data.ExerciseRepository
 import com.example.fitnessapp.data.ExerciseRepositoryImpl
 import com.example.fitnessapp.data.GymActivityDatabase
+import com.example.fitnessapp.data.GymDao
+import com.example.fitnessapp.data.GymRepository
+import com.example.fitnessapp.data.GymRepositoryImpl
+import com.example.fitnessapp.data.HealthConnectManager
+import com.example.fitnessapp.data.SetEntryDao
 import com.example.fitnessapp.data.SetGroupDao
 import com.example.fitnessapp.data.WorkoutDao
 import com.example.fitnessapp.viewmodel.CurrentWorkoutViewModel
 import com.example.fitnessapp.viewmodel.ExerciseHistoryViewModel
 import com.example.fitnessapp.viewmodel.ExerciseListSelectionViewModel
+import com.example.fitnessapp.viewmodel.WorkoutHistoryViewModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
-import androidx.room.RoomDatabase
-import androidx.sqlite.db.SupportSQLiteDatabase
-import com.example.fitnessapp.data.GymDao
-import com.example.fitnessapp.data.GymRepository
-import com.example.fitnessapp.data.GymRepositoryImpl
-import com.example.fitnessapp.data.SetEntryDao
-import com.example.fitnessapp.viewmodel.WorkoutHistoryViewModel
+
 
 // https://developer.android.com/training/data-storage/room/prepopulate
 
@@ -47,6 +46,10 @@ val appModule = module {
     single<SetGroupDao> { get<GymActivityDatabase>().setGroupDao() }
     single<SetEntryDao> { get<GymActivityDatabase>().setEntryDao() }
     single<ExerciseDao> { get<GymActivityDatabase>().exerciseDao() }
+
+    // health connect manager
+
+    single { HealthConnectManager(androidContext()) }
 
     // coroutine
     single<CoroutineDispatcher> { Dispatchers.IO }
@@ -81,7 +84,7 @@ val appModule = module {
     // view models
     viewModel { ExerciseListSelectionViewModel(exerciseRepository = get()) }
     viewModel { CurrentWorkoutViewModel(workoutRepository = get(), gymRepository = get(), exerciseRepository = get()) }
-    viewModel { WorkoutHistoryViewModel(workoutDao = get()) }
+    viewModel { WorkoutHistoryViewModel(workoutDao = get(), healthConnectManager = get()) }
     viewModel { ExerciseHistoryViewModel(exerciseRepository = get(), savedStateHandle = get()) }
 }
 
