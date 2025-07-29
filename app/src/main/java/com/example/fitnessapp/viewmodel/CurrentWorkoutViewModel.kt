@@ -1,63 +1,111 @@
 package com.example.fitnessapp.viewmodel
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.fitnessapp.data.CurrentWorkoutRepository
 import com.example.fitnessapp.data.ExerciseRepository
+import com.example.fitnessapp.data.GymRepository
 import com.example.fitnessapp.data.SetEntry
 import com.example.fitnessapp.data.SetGroup
-import com.example.fitnessapp.data.SetEntryEntity
 import com.example.fitnessapp.data.WeightUnit
-import com.example.fitnessapp.data.Workout
-import kotlinx.coroutines.flow.SharingStarted
+import com.example.fitnessapp.views.CurrentWorkoutUIState
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
 class CurrentWorkoutViewModel(
     private val workoutRepository: CurrentWorkoutRepository,
-    private val exerciseRepository: ExerciseRepository
+    private val exerciseRepository: ExerciseRepository,
+    private val gymRepository: GymRepository
 ) : ViewModel() {
 
-    // the current workout (or null if none started)
-    val currentWorkout: StateFlow<Workout?> =
+    private val _uiState = MutableStateFlow(
+        CurrentWorkoutUIState(
+            currentWorkout = null,
+            setGroups = emptyList(),
+            exerciseUiList = emptyList(),
+            gyms = emptyList(),
+            selectedGym = null
+        )
+    )
+    val uiState: StateFlow<CurrentWorkoutUIState> = _uiState.asStateFlow()
+
+    init {
+        // observe current workout
         workoutRepository.getCurrentWorkoutOrNull()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+            .onEach { workout ->
+                _uiState.value = _uiState.value.copy(currentWorkout = workout)
+            }
+            .launchIn(viewModelScope)
 
-    // the list of exercises (setGroups) in that workout
-    val setGroups: StateFlow<List<SetGroup>> =
+        // observe set groups
         workoutRepository.getSetGroups()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+            .onEach { groups ->
+                _uiState.value = _uiState.value.copy(
+                    setGroups = groups,
+                    exerciseUiList = groups.map { group ->
+                        group.exerciseName to group.entries.map { entry ->
+                            entry.weight to entry.reps
+                        }
+                    }
+                )
+            }
+            .launchIn(viewModelScope)
 
-    // kick off a brand new workout; returns the new rowId under the hood
+        // load gyms
+        gymRepository.getAllGyms()
+            .onEach { gyms ->
+                _uiState.value = _uiState.value.copy(gyms = gyms)
+
+                // If we have a current workout, load its gym
+                uiState.value.currentWorkout?.let { workout ->
+                    if (workout.locationId > 0) {
+                        val gym = gyms.find { it.id == workout.locationId }
+                        _uiState.value = _uiState.value.copy(selectedGym = gym)
+                    }
+                }
+            }
+            .launchIn(viewModelScope)
+    }
+
+    fun selectGym(gymId: Int) = viewModelScope.launch {
+        val gym = gymRepository.getGymById(gymId)
+        if (gym != null) {
+            _uiState.value = _uiState.value.copy(selectedGym = gym)
+
+            // Update workout's gym if a workout exists
+            uiState.value.currentWorkout?.let { workout ->
+                workoutRepository.updateWorkoutGym(workout.id.toLong(), gym.id)
+            }
+        }
+    }
+
+    // start a brand new workout
     fun startNewWorkout(gymId: Int = 0) = viewModelScope.launch {
-        workoutRepository.startNewWorkout(gymId)
+        val actualGymId = gymId.takeIf { it > 0 }
+            ?: uiState.value.selectedGym?.id
+            ?: 0
+
+        workoutRepository.startNewWorkout(actualGymId)
+    }
+
+    fun createNewGym(name: String) = viewModelScope.launch {
+        val gymId = gymRepository.insertGym(name)
+        selectGym(gymId.toInt())
     }
 
     // mark the current workout as finished
     fun finishCurrentWorkout() = viewModelScope.launch {
-        workoutRepository.finishCurrentWorkout()
+        workoutRepository.finishCurrentWorkout(System.currentTimeMillis())
     }
-
-    val exerciseUiList: StateFlow<List<Pair<String, List<Pair<String, String>>>>> =
-        setGroups
-            .map { groups ->
-                groups.map { group ->
-                    group.exerciseName to group.entries.map { it.weight.toString() to it.reps.toString() }
-                }
-            }
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000),
-                initialValue = emptyList()
-            )
 
     // add an exercise (setGroup) by its id
     fun addExerciseById(exerciseId: Long) = viewModelScope.launch {
         val selectedExercise = exerciseRepository.getExerciseById(exerciseId) ?: return@launch
-        val workout = currentWorkout.value ?: return@launch
+        val workout = _uiState.value.currentWorkout ?: return@launch
 
         val newSetGroup = SetGroup(
             setGroupId    = 0,
@@ -66,25 +114,16 @@ class CurrentWorkoutViewModel(
             name          = selectedExercise.name,
             weightUnit    = WeightUnit.KG,
             exerciseName  = selectedExercise.name,
-            entries       = listOf(
-                SetEntry(
-                    weight      = "0",
-                    reps        = "0",
-//                    setEntryId  = 0,
-//                    setGroupId  = 0,
-//                    setIndex    = 0
-                )
-            )
+            entries       = listOf(SetEntry(weight = "0", reps = "0"))
         )
 
-        workoutRepository.addExercise(newSetGroup)
+        workoutRepository.addSetGroupToWorkout(newSetGroup)
     }
-
 
     // remove an exercise SetGroup
     fun removeExercise(exerciseIndex: Int) = viewModelScope.launch {
-        val group = setGroups.value.getOrNull(exerciseIndex) ?: return@launch
-        workoutRepository.removeExercise(group)
+        val setGroup = _uiState.value.setGroups.getOrNull(exerciseIndex) ?: return@launch
+        workoutRepository.removeExercise(setGroup)
     }
 
     // add a new set to a specific exercise
@@ -106,4 +145,5 @@ class CurrentWorkoutViewModel(
     fun updateSetReps(exerciseIndex: Int, setIndex: Int, newReps: String) = viewModelScope.launch {
         workoutRepository.updateSetReps(exerciseIndex, setIndex, newReps)
     }
+
 }

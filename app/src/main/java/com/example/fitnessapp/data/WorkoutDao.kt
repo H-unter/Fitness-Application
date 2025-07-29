@@ -20,8 +20,12 @@ interface WorkoutDao{
     @Query("SELECT * FROM Workout WHERE isInProgress = 1 LIMIT 1")
     fun getCurrentWorkout(): Flow<WorkoutEntity?>
 
-    @Query("UPDATE Workout SET isInProgress = 0 WHERE workoutId = :id")
-    suspend fun markFinished(id: Int)
+    //update the gym of the current workout
+    @Query("UPDATE Workout SET gymId = :gymId WHERE workoutId = :workoutId")
+    suspend fun updateWorkoutGym(workoutId: Int, gymId: Int)
+
+    @Query("UPDATE Workout SET isInProgress = 0, endTime = :endTime WHERE workoutId = :id")
+    suspend fun markFinished(id: Int, endTime: Long)
 
     @Query("UPDATE Workout SET isInProgress = 1 WHERE workoutId = :id")
     suspend fun markInProgress(id: Int)

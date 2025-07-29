@@ -21,8 +21,9 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.EditLocationAlt
 import androidx.compose.material.icons.outlined.FitnessCenter
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -38,11 +39,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,12 +53,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
-import com.example.fitnessapp.BottomNavigationBar
+import androidx.navigation.compose.rememberNavController
+import com.example.fitnessapp.data.Gym
 import com.example.fitnessapp.data.SetGroup
 import com.example.fitnessapp.navigation.Screens
 import com.example.fitnessapp.ui.theme.FitnessappTheme
 import com.example.fitnessapp.viewmodel.CurrentWorkoutViewModel
+import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -66,98 +70,124 @@ fun CurrentWorkoutScreen(
     modifier: Modifier = Modifier,
     viewModel: CurrentWorkoutViewModel = koinViewModel()
 ) {
-    val setGroups       by viewModel.setGroups.collectAsState()
-    val currentWorkout by viewModel.currentWorkout.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    val selectedExerciseId = navController.currentBackStackEntry
-        ?.savedStateHandle
-        ?.getStateFlow<Long?>("selectedExerciseId", null)
-        ?.collectAsState()
-        ?.value
-
-    // if there is no workout, give the option to start a new workout
-    if (currentWorkout == null) {
-        Box(
-            modifier = modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            ElevatedButton(onClick = { viewModel.startNewWorkout() }) {
-                Text("Start Workout")
-            }
-        }
+    if (uiState.currentWorkout == null) {
+        EmptyWorkoutScreen(
+            navController = navController,
+            onStartWorkout = { viewModel.startNewWorkout() }
+        )
         return
     }
 
-    // in progress workout
-    LaunchedEffect(selectedExerciseId) {
-        val id = selectedExerciseId
-        if (id != null) {
-            viewModel.addExerciseById(id)
-            navController.currentBackStackEntry
-                ?.savedStateHandle
-                ?.set("selectedExerciseId", null)
+    // Handle coming back from ExerciseListSelectionScreen
+    LaunchedEffect(navController) {
+        navController.currentBackStackEntry?.savedStateHandle?.let { handle ->
+            handle.get<Long>("selectedExerciseId")?.let { id ->
+                viewModel.addExerciseById(id)
+                // Clear the value after consuming it
+                handle.remove<Long>("selectedExerciseId")
+            }
         }
     }
 
-    // render current workout screen content
     CurrentWorkoutScreenContent(
-        exercises               = setGroups.map {
-            it.exerciseName to it.entries.map { e ->
-                e.weight.toString() to e.reps.toString()
-            }
-        },
-        setGroups               = setGroups,
-        onExerciseWeightChange  = viewModel::updateSetWeight,
-        onExerciseRepsChange    = viewModel::updateSetReps,
-        onAddSetToExercise      = viewModel::addSetToExercise,
-        onRemoveSetFromExercise = { idx ->
-            val group = setGroups.getOrNull(idx) ?: return@CurrentWorkoutScreenContent
-            viewModel.removeSetFromExercise(idx, group.entries.lastIndex)
-        },
-        onAddExercise           = {navController.navigate(Screens.ExerciseListSelectionScreen.route)},
-        onRemoveExercise        = viewModel::removeExercise,
-        onNavigateToStats       = { id ->navController.navigate(Screens.ExerciseStatsScreen.createRoute(id))},
-        onCompleteWorkout       = viewModel::finishCurrentWorkout,
-        modifier                = modifier
+        uiState = uiState,
+        navController = navController,
+        onExerciseWeightChange = viewModel::updateSetWeight,
+        onExerciseRepsChange = viewModel::updateSetReps,
+        onAddSetToExercise = viewModel::addSetToExercise,
+        onRemoveSetFromExercise = viewModel::removeSetFromExercise,
+        onAddExercise = { navController.navigate(Screens.ExerciseListSelectionScreen.route) },
+        onRemoveExercise = viewModel::removeExercise,
+        onNavigateToStats = { id -> navController.navigate(Screens.ExerciseStatsScreen.createRoute(id)) },
+        onCompleteWorkout = viewModel::finishCurrentWorkout,
+        onGymSelected = viewModel::selectGym,
+        onCreateGym = viewModel::createNewGym,
+        modifier = modifier
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EmptyWorkoutScreen(
+    onStartWorkout: () -> Unit,
+    modifier: Modifier = Modifier,
+    navController: NavHostController
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text="Empty Workout",
+                        style = MaterialTheme.typography.headlineSmall)
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                ))
+        },
+        bottomBar = { BottomNavigationBar(navController = navController) }
+    ) { paddingValues ->
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(paddingValues),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Nothing to See Here, Officer!")
+                ElevatedButton(onClick = onStartWorkout, modifier = Modifier.padding(top = 16.dp)) {
+                    Text("Start New Workout")
+                }
+            }
+        }
+    }
+}
 
 @Composable
 fun CurrentWorkoutScreenContent(
-    exercises: List<Pair<String, List<Pair<String, String>>>>,
-    setGroups: List<SetGroup>,
+    uiState: CurrentWorkoutUIState,
+    navController: NavHostController,
     onExerciseWeightChange: (Int, Int, String) -> Unit,
     onExerciseRepsChange: (Int, Int, String) -> Unit,
     onAddSetToExercise: (Int) -> Unit,
-    onRemoveSetFromExercise: (Int) -> Unit,
+    onRemoveSetFromExercise: (Int, Int) -> Unit,
     onAddExercise: () -> Unit,
     onRemoveExercise: (Int) -> Unit,
     onNavigateToStats: (Long) -> Unit,
     onCompleteWorkout: () -> Unit,
+    onGymSelected: (Int) -> Unit,
+    onCreateGym: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
         topBar = {
             WorkoutTopAppBar(
-                selectedGym = "Help",
-                onGymSelected = {},
+                startTime = uiState.currentWorkout?.startTime ?: System.currentTimeMillis(),
+                selectedGym = uiState.selectedGym,
+                gyms = uiState.gyms,
+                onGymSelected = onGymSelected,
+                onCreateGym = onCreateGym,
                 onCompleteWorkout = onCompleteWorkout
             )
         },
-        bottomBar = { BottomNavigationBar() }
+        bottomBar = { BottomNavigationBar(navController = navController) }
     ) { paddingValues: PaddingValues ->
         CurrentWorkout(
-            exercises               = exercises,
-            setGroups               = setGroups,
-            onExerciseWeightChange  = onExerciseWeightChange,
-            onExerciseRepsChange    = onExerciseRepsChange,
-            onAddSetToExercise      = onAddSetToExercise,
+            exercises = uiState.exerciseUiList,
+            setGroups = uiState.setGroups,
+            onExerciseWeightChange = onExerciseWeightChange,
+            onExerciseRepsChange = onExerciseRepsChange,
+            onAddSetToExercise = onAddSetToExercise,
             onRemoveSetFromExercise = onRemoveSetFromExercise,
-            onAddExercise           = onAddExercise,
-            onRemoveExercise        = onRemoveExercise,
-            onNavigateToStats       = onNavigateToStats,
-            modifier                = modifier.padding(paddingValues)
+            onAddExercise = onAddExercise,
+            onRemoveExercise = onRemoveExercise,
+            onNavigateToStats = onNavigateToStats,
+            modifier = modifier.padding(paddingValues)
         )
     }
 }
@@ -169,7 +199,7 @@ fun CurrentWorkout(
     onExerciseWeightChange: (exerciseIndex: Int, setIndex: Int, newWeight: String) -> Unit,
     onExerciseRepsChange: (exerciseIndex: Int, setIndex: Int, newReps: String) -> Unit,
     onAddSetToExercise: (exerciseIndex: Int) -> Unit,
-    onRemoveSetFromExercise: (exerciseIndex: Int) -> Unit,
+    onRemoveSetFromExercise: (exerciseIndex: Int, setIndex: Int) -> Unit,
     onAddExercise: () -> Unit,
     onRemoveExercise: (exerciseIndex: Int) -> Unit,
     onNavigateToStats: (Long) -> Unit,
@@ -181,6 +211,7 @@ fun CurrentWorkout(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         itemsIndexed(exercises) { exerciseIndex, (exerciseName, sets) ->
+            val exerciseId = setGroups[exerciseIndex].exerciseId.toLong()
             Exercise(
                 index = exerciseIndex,
                 name = exerciseName,
@@ -192,8 +223,8 @@ fun CurrentWorkout(
                     onExerciseRepsChange(exerciseIndex, setIndex, newReps)
                 },
                 onAddSet = { onAddSetToExercise(exerciseIndex) },
-                onRemoveSet = { onRemoveSetFromExercise(exerciseIndex)},
-                onNavigateToStats = {onNavigateToStats(setGroups[exerciseIndex].exerciseId.toLong())},
+                onRemoveSet = { setIndex -> onRemoveSetFromExercise(exerciseIndex, setIndex) },
+                onNavigateToStats = { onNavigateToStats(exerciseId) }, // Pass ID here
                 onRemoveExercise = {onRemoveExercise(exerciseIndex)}
             )
         }
@@ -222,7 +253,7 @@ fun Exercise(
     onWeightChange: (Int, String) -> Unit,
     onRepsChange: (Int, String) -> Unit,
     onAddSet: () -> Unit,
-    onRemoveSet: () -> Unit,
+    onRemoveSet: (Int) -> Unit,
     onNavigateToStats: () -> Unit,
     onRemoveExercise: (index: Int) -> Unit,
     modifier: Modifier = Modifier
@@ -283,14 +314,14 @@ fun Exercise(
                     )
                 }
             }
-            sets.forEachIndexed { index, (kg, reps) ->
+            sets.forEachIndexed { setIdx, (kg, reps) ->
                 SetRow(
-                    setIndex = index + 1,
+                    setIndex = setIdx + 1,
                     weight = kg,
                     reps = reps,
                     weightUnits = selectedWeightUnit,
-                    onWeightChange = { newKg -> onWeightChange(index, newKg) },
-                    onRepsChange = { newReps -> onRepsChange(index, newReps) }
+                    onWeightChange = { newKg -> onWeightChange(setIdx, newKg) },
+                    onRepsChange = { newReps -> onRepsChange(setIdx, newReps) }
                 )
             }
 
@@ -302,13 +333,12 @@ fun Exercise(
                 ) {
                     Icon(imageVector = Icons.Default.Add, contentDescription = "Add Set")
                     Text(
-                        text = "Add Set", // TODO: make this into a resource
+                        text = "Add Set",
                         modifier = Modifier.padding(start = 8.dp)
-
                     )
                 }
                 ElevatedButton(
-                    onClick = onRemoveSet,
+                    onClick = { if (sets.isNotEmpty()) onRemoveSet(sets.size - 1) },
                     colors = ButtonDefaults.elevatedButtonColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer,
                         contentColor   = MaterialTheme.colorScheme.onErrorContainer
@@ -316,28 +346,92 @@ fun Exercise(
                     modifier = Modifier
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.Close, contentDescription = "Add Set")
+                    Icon(imageVector = Icons.Default.Close, contentDescription = "Remove Set")
                     Text(
-                        text = "Remove Set", // TODO: make this into a resource
+                        text = "Remove Set",
                         modifier = Modifier.padding(start = 8.dp)
                     )
                 }
             }
-
         }
     }
+}
+
+
+@Composable
+fun ElapsedTimeDisplay(startTime: Long, modifier: Modifier = Modifier) {
+    var elapsedTime by remember { mutableStateOf(0L) }
+
+    // Update timer every second
+    LaunchedEffect(startTime) {
+        while (true) {
+            elapsedTime = System.currentTimeMillis() - startTime
+            delay(1000) // Update every second
+        }
+    }
+
+    val hours = elapsedTime / (1000 * 60 * 60)
+    val minutes = (elapsedTime % (1000 * 60 * 60)) / (1000 * 60)
+    val seconds = (elapsedTime % (1000 * 60)) / 1000
+
+    val formattedTime = String.format("%02d:%02d:%02d", hours, minutes, seconds)
+
+    Text(
+        text = formattedTime,
+        style = MaterialTheme.typography.titleLarge,
+        modifier = modifier
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkoutTopAppBar(
-    selectedGym: String = "Gym 1",
-    onGymSelected: (String) -> Unit = {},
+    startTime: Long,
+    selectedGym: Gym?,
+    gyms: List<Gym>,
+    onGymSelected: (Int) -> Unit = {},
+    onCreateGym: (String) -> Unit = {},
     onCompleteWorkout: () -> Unit = {}
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val gymOptions = listOf("Gym 1", "Gym 2", "Gym 3", "Gym 4")
+    var showAddGymDialog by remember { mutableStateOf(false) }
+    var newGymName by remember { mutableStateOf("") }
+
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+
+    // Dialog to add a new gym
+    if (showAddGymDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddGymDialog = false },
+            title = { Text("Add New Gym") },
+            text = {
+                OutlinedTextField(
+                    value = newGymName,
+                    onValueChange = { newGymName = it },
+                    label = { Text("Gym Name") },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (newGymName.isNotBlank()) {
+                            onCreateGym(newGymName)
+                            newGymName = ""
+                            showAddGymDialog = false
+                        }
+                    }
+                ) {
+                    Text("Add")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddGymDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     TopAppBar(
         title = {
@@ -346,31 +440,67 @@ fun WorkoutTopAppBar(
                     text = "Current Workout",
                     style = MaterialTheme.typography.headlineSmall
                 )
-                Text(
-                    text = "$selectedGym",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                ) // material 3 doesn't have a subtitle parameter yet in the non-expressive release
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = selectedGym?.name ?: "No Gym Selected",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                    )
+                    ElapsedTimeDisplay(
+                        startTime = startTime,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
             }
         },
         navigationIcon = {
             IconButton(onClick = { expanded = true }) {
-                Icon(Icons.Default.Menu, contentDescription = "Select Gym")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.EditLocationAlt, contentDescription = "Select Gym")
+                    Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                }
             }
 
             DropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false }
             ) {
-                gymOptions.forEach { gym ->
+                if (gyms.isEmpty()) {
                     DropdownMenuItem(
-                        text = { Text(gym) },
-                        onClick = {
-                            onGymSelected(gym)
-                            expanded = false
-                        }
+                        text = { Text("No gyms available") },
+                        onClick = { }
                     )
+                } else {
+                    gyms.forEach { gym ->
+                        DropdownMenuItem(
+                            text = { Text(gym.name) },
+                            onClick = {
+                                onGymSelected(gym.id)
+                                expanded = false
+                            }
+                        )
+                    }
                 }
+
+                DropdownMenuItem(
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = null,
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                            Text("Add New Gym")
+                        }
+                    },
+                    onClick = {
+                        showAddGymDialog = true
+                        expanded = false
+                    }
+                )
             }
         },
         actions = {
@@ -387,9 +517,6 @@ fun WorkoutTopAppBar(
         )
     )
 }
-
-
-
 
 
 
@@ -518,28 +645,72 @@ fun SetTextField(
 }
 
 
+@Preview
 @Composable
 fun Preview_CurrentWorkoutScreenContent() {
     FitnessappTheme {
-        val sampleExercises = listOf(
-            "Bench Press" to listOf("50" to "8", "55" to "6"),
-            "Squat" to listOf("80" to "8", "85" to "6")
+        val sampleSetGroups = listOf(
+            SetGroup(
+                setGroupId = 1,
+                workoutId = 1,
+                exerciseId = 101,
+                name = "Bench Press",
+                weightUnit = com.example.fitnessapp.data.WeightUnit.KG,
+                exerciseName = "Bench Press",
+                entries = listOf(
+                    com.example.fitnessapp.data.SetEntry(weight = "50", reps = "8"),
+                    com.example.fitnessapp.data.SetEntry(weight = "55", reps = "6")
+                )
+            )
         )
+        val sampleUiState = CurrentWorkoutUIState(
+            currentWorkout = com.example.fitnessapp.data.Workout(
+                id = 1,
+                locationId = 1,
+                startTime = 0L,
+                endTime = 0L,
+                isInProgress = true,
+                setGroups = sampleSetGroups
+            ),
+            setGroups = sampleSetGroups,
+            exerciseUiList = sampleSetGroups.map {
+                it.exerciseName to it.entries.map { entry -> entry.weight to entry.reps }
+            },
+            gyms = emptyList(),
+            selectedGym = null
+        )
+
+        // Use MockNavController instead of casting
+        val mockNavController = rememberNavController()
+
         CurrentWorkoutScreenContent(
-            exercises               = sampleExercises,
-            setGroups               = emptyList(),
-            onExerciseWeightChange  = { _, _, _ -> },
-            onExerciseRepsChange    = { _, _, _ -> },
-            onAddSetToExercise      = { _ -> },
-            onRemoveSetFromExercise = { _ -> },
-            onAddExercise           = {},
-            onRemoveExercise        = { _ -> },
-            onCompleteWorkout       = {},
-            onNavigateToStats       = {}
+            uiState = sampleUiState,
+            navController = mockNavController,
+            onExerciseWeightChange = { _, _, _ -> },
+            onExerciseRepsChange = { _, _, _ -> },
+            onAddSetToExercise = { _ -> },
+            onRemoveSetFromExercise = { _, _ -> },
+            onAddExercise = {},
+            onRemoveExercise = { _ -> },
+            onNavigateToStats = {},
+            onCompleteWorkout = {},
+            onGymSelected = {},
+            onCreateGym = {}
         )
     }
 }
 
+@Preview
+@Composable
+fun Preview_EmptyWorkoutScreen() {
+    FitnessappTheme {
+        val mockNavController = rememberNavController()
+        EmptyWorkoutScreen(
+            navController = mockNavController,
+            onStartWorkout = {}
+        )
+    }
+}
 
 @Preview(
     name = "Light Mode Preview",

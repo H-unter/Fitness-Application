@@ -7,5 +7,6 @@ data class Workout(
     val startTime: Long,
     val endTime: Long,
     val isInProgress: Boolean,
-    val setGroups: List<SetGroup>
+    val setGroups: List<SetGroup>,
+    val gym: Gym? = null
 )

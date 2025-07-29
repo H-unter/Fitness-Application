@@ -43,10 +43,10 @@ class CurrentWorkoutRepositoryImpl(
         )
     }
 
-    override suspend fun finishCurrentWorkout() {
+    override suspend fun finishCurrentWorkout(endTime: Long) {
         withContext(dispatcher) {
             _currentWorkout.value?.let { workoutEntity ->
-                workoutDao.markFinished(workoutEntity.workoutId)
+                workoutDao.markFinished(workoutEntity.workoutId, endTime)
             }
         }
     }
@@ -65,12 +65,16 @@ class CurrentWorkoutRepositoryImpl(
                 }
             }
 
-
+    override suspend fun updateWorkoutGym(workoutId: Long, gymId: Int) {
+        withContext(dispatcher) {
+            workoutDao.updateWorkoutGym(workoutId.toInt(), gymId)
+        }
+    }
     override fun getSetGroups(): Flow<List<SetGroup>> =
         getCurrentWorkoutOrNull()
             .map { workout -> workout?.setGroups ?: emptyList() }
 
-    override suspend fun addExercise(setGroup: SetGroup) {
+    override suspend fun addSetGroupToWorkout(setGroup: SetGroup) {
         withContext(dispatcher) {
             val currentWorkout = _currentWorkout.value ?: return@withContext
 
