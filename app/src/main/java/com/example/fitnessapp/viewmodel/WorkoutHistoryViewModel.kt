@@ -8,9 +8,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.fitnessapp.data.HealthConnectAvailability
 import com.example.fitnessapp.data.HealthConnectManager
-import com.example.fitnessapp.data.SetGroup
 import com.example.fitnessapp.data.WorkoutDao
 import com.example.fitnessapp.data.toDomain
+import com.example.fitnessapp.views.HealthConnectSession
 import com.example.fitnessapp.views.WorkoutHistoryItem
 import com.example.fitnessapp.views.WorkoutHistoryUIState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -148,5 +148,71 @@ class WorkoutHistoryViewModel(
             minutes > 0 -> String.format("%dm %02ds", minutes, seconds)
             else -> String.format("%ds", seconds)
         }
+    }
+
+    fun readAllHealthConnectData() {
+        viewModelScope.launch {
+            try {
+                val availability = healthConnectManager.checkAvailability()
+                if (availability != HealthConnectAvailability.INSTALLED) {
+                    Log.e(TAG, "Health Connect not installed")
+                    return@launch
+                }
+
+                if (!healthConnectManager.hasAllPermissions()) {
+                    Log.e(TAG, "Missing required permissions")
+                    return@launch
+                }
+
+                Log.d(TAG, "Starting Health Connect data read test")
+                val result = healthConnectManager.readAllExerciseSessions()
+
+                if (result.isSuccess) {
+                    val sessions = result.getOrNull()
+                    Log.d(TAG, "Successfully read ${sessions?.size ?: 0} exercise sessions")
+
+                    val healthConnectSessions = sessions?.map { session ->
+                        // Calculate total reps from segments if available
+                        val totalReps = session.segments.sumOf { it.repetitions }
+
+                        HealthConnectSession(
+                            id = session.metadata.id,
+                            title = session.title,
+                            startTime = session.startTime,
+                            endTime = session.endTime,
+                            exerciseType = session.exerciseType,
+                            segmentCount = session.segments.size,
+                            totalReps = totalReps,
+                            clientRecordId = session.metadata.clientRecordId
+                        )
+                    }
+
+                    _uiState.value = _uiState.value.copy(
+                        healthConnectTestResult = "Found ${sessions?.size ?: 0} exercise sessions",
+                        healthConnectSessions = healthConnectSessions,
+                        showHealthConnectDialog = true
+                    )
+                } else {
+                    val error = result.exceptionOrNull()
+                    Log.e(TAG, "Failed to read exercise sessions: ${error?.message}", error)
+                    _uiState.value = _uiState.value.copy(
+                        healthConnectTestResult = "Error: ${error?.message}",
+                        showHealthConnectDialog = false
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error reading Health Connect data", e)
+                _uiState.value = _uiState.value.copy(
+                    healthConnectTestResult = "Exception: ${e.message}",
+                    showHealthConnectDialog = false
+                )
+            }
+        }
+    }
+
+    fun dismissHealthConnectDialog() {
+        _uiState.value = _uiState.value.copy(
+            showHealthConnectDialog = false
+        )
     }
 }

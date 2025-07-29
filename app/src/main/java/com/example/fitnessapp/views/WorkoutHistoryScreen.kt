@@ -16,10 +16,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
@@ -45,6 +46,9 @@ import com.example.fitnessapp.data.WeightUnit
 import com.example.fitnessapp.ui.theme.FitnessappTheme
 import com.example.fitnessapp.viewmodel.WorkoutHistoryViewModel
 import org.koin.androidx.compose.koinViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun WorkoutHistoryScreen(
@@ -53,16 +57,13 @@ fun WorkoutHistoryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // Create the permissions launcher (exactly like docs)
     val requestPermissions = rememberLauncherForActivityResult(
         viewModel.requestPermissionActivityContract
     ) { granted ->
         if (granted.containsAll(HealthConnectManager.PERMISSIONS)) {
-            // Permissions successfully granted
             Log.d("WorkoutHistory", "Permissions successfully granted")
             viewModel.checkAndRequestPermissions()
         } else {
-            // Lack of required permissions
             Log.d("WorkoutHistory", "Lack of required permissions")
         }
     }
@@ -84,7 +85,11 @@ fun WorkoutHistoryScreen(
         navController = navController,
         onRequestPermissions = {
             requestPermissions.launch(HealthConnectManager.PERMISSIONS)
-        }
+        },
+        onViewHealthConnectData = {
+            viewModel.readAllHealthConnectData()
+        },
+        viewModel = viewModel
     )
 }
 
@@ -94,7 +99,9 @@ fun WorkoutHistoryScreenContent(
     uiState: WorkoutHistoryUIState,
     navController: NavHostController,
     onRequestPermissions: () -> Unit = {},
-    modifier: Modifier = Modifier
+    onViewHealthConnectData: () -> Unit = {}, // Added parameter
+    modifier: Modifier = Modifier,
+    viewModel: WorkoutHistoryViewModel? = null // Make ViewModel optional
 ) {
     Scaffold(
         topBar = {
@@ -107,12 +114,15 @@ fun WorkoutHistoryScreenContent(
                 navigationIcon = {
                     if (uiState.permissionsGranted) {
                         IconButton(
-                            onClick = {},
-                            enabled = false
+                            onClick = {
+                                // Use the passed function instead of directly calling ViewModel
+                                onViewHealthConnectData()
+                            },
+                            enabled = true
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CloudDone,
-                                contentDescription = "Health Connect synced",
+                                contentDescription = "View Health Connect Data",
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
@@ -137,28 +147,38 @@ fun WorkoutHistoryScreenContent(
         },
         bottomBar = { BottomNavigationBar(navController = navController) }
     ) { paddingValues ->
-        if (uiState.workouts.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = androidx.compose.ui.Alignment.Center
-            ) {
-                Text(
-                    text = "No workouts to show, get lifting!",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            if (uiState.showHealthConnectDialog) {
+                HealthConnectDataDialog(
+                    sessions = uiState.healthConnectSessions ?: emptyList(),
+                    onDismiss = { viewModel?.dismissHealthConnectDialog() }
                 )
             }
-        } else {
-            LazyColumn(
-                modifier = modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(uiState.workouts) { workout ->
-                    WorkoutHistoryItem(workout = workout)
+
+            if (uiState.workouts.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize(),
+                    contentAlignment = androidx.compose.ui.Alignment.Center
+                ) {
+                    Text(
+                        text = "No workouts to show, get lifting!",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(uiState.workouts) { workout ->
+                        WorkoutHistoryItem(workout = workout)
+                    }
                 }
             }
         }
@@ -291,6 +311,133 @@ private fun ExerciseDetailCard(
     }
 }
 
+@Composable
+fun HealthConnectDataDialog(
+    sessions: List<HealthConnectSession>,
+    onDismiss: () -> Unit
+) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Health Connect Data",
+                style = MaterialTheme.typography.headlineSmall
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+            ) {
+                Text(
+                    text = "Found ${sessions.size} exercise sessions in Health Connect",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if (sessions.isEmpty()) {
+                    Text(
+                        text = "No exercise sessions found in Health Connect",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                } else {
+                    // Use LazyColumn for potentially large lists
+                    androidx.compose.foundation.lazy.LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(300.dp)
+                    ) {
+                        items(sessions) { session ->
+                            HealthConnectSessionItem(session)
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 8.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.Button(
+                onClick = onDismiss
+            ) {
+                Text("Close")
+            }
+        }
+    )
+}
+
+@Composable
+fun HealthConnectSessionItem(session: HealthConnectSession) {
+    val dateFormatter = SimpleDateFormat("MMM d, yyyy HH:mm:ss", Locale.getDefault())
+    val startTimeFormatted = dateFormatter.format(Date.from(session.startTime))
+    val endTimeFormatted = dateFormatter.format(Date.from(session.endTime))
+    val durationSeconds = session.endTime.epochSecond - session.startTime.epochSecond
+    val durationMinutes = durationSeconds / 60
+    val durationHours = durationMinutes / 60
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+    ) {
+        Text(
+            text = session.title ?: "Untitled Workout",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Display exercise type
+        val exerciseTypeStr = when (session.exerciseType) {
+            ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING -> "Strength Training"
+            else -> "Other (${session.exerciseType})"
+        }
+
+        Text(
+            text = "Type: $exerciseTypeStr",
+            style = MaterialTheme.typography.bodyMedium
+        )
+
+        Text(
+            text = "Duration: ${if (durationHours > 0) "${durationHours}h " else ""}${durationMinutes % 60}m",
+            style = MaterialTheme.typography.bodyMedium
+        )
+
+        Text(
+            text = "Start: $startTimeFormatted",
+            style = MaterialTheme.typography.bodySmall
+        )
+
+        Text(
+            text = "End: $endTimeFormatted",
+            style = MaterialTheme.typography.bodySmall
+        )
+
+        if (session.segmentCount > 0) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Segments: ${session.segmentCount}, Total Reps: ${session.totalReps}",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
+            )
+        }
+
+        session.clientRecordId?.let { clientId ->
+            Text(
+                text = "ID: $clientId",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.outline
+            )
+        }
+    }
+}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -329,7 +476,8 @@ private fun WorkoutHistoryScreenPreview_PermissionsGranted() {
     FitnessappTheme {
         WorkoutHistoryScreenContent(
             uiState = sampleState,
-            navController = rememberNavController()
+            navController = rememberNavController(),
+            onViewHealthConnectData = {} // Empty function for preview
         )
     }
 }
@@ -346,7 +494,48 @@ private fun WorkoutHistoryScreenPreview_PermissionsNotGranted() {
     FitnessappTheme {
         WorkoutHistoryScreenContent(
             uiState = sampleState,
-            navController = rememberNavController()
+            navController = rememberNavController(),
+            onViewHealthConnectData = {} // Empty function for preview
         )
+    }
+}
+
+// Add preview for HealthConnectDataDialog
+@Composable
+@Preview(
+    name = "Health Connect Dialog Preview",
+    showBackground = true
+)
+fun HealthConnectDataDialogPreview() {
+    val sampleSessions = listOf(
+        HealthConnectSession(
+            id = "1",
+            title = "Morning Workout",
+            startTime = java.time.Instant.now().minusSeconds(3600),
+            endTime = java.time.Instant.now(),
+            exerciseType = ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING,
+            segmentCount = 3,
+            totalReps = 45,
+            clientRecordId = "workout_123"
+        ),
+        HealthConnectSession(
+            id = "2",
+            title = "Evening Run",
+            startTime = java.time.Instant.now().minusSeconds(7200),
+            endTime = java.time.Instant.now().minusSeconds(5400),
+            exerciseType = ExerciseSessionRecord.EXERCISE_TYPE_RUNNING,
+            segmentCount = 1,
+            totalReps = 0,
+            clientRecordId = "workout_124"
+        )
+    )
+
+    FitnessappTheme {
+        Surface {
+            HealthConnectDataDialog(
+                sessions = sampleSessions,
+                onDismiss = {}
+            )
+        }
     }
 }

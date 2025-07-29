@@ -2,11 +2,9 @@ package com.example.fitnessapp.data
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.health.connect.datatypes.ExerciseSegmentType
 import android.os.Build
 import android.util.Log
 import androidx.activity.result.contract.ActivityResultContract
-import androidx.compose.runtime.mutableStateOf
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.HealthConnectClient.Companion.SDK_AVAILABLE
 import androidx.health.connect.client.PermissionController
@@ -14,6 +12,7 @@ import androidx.health.connect.client.changes.Change
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ExerciseSegment
 import androidx.health.connect.client.records.ExerciseSessionRecord
+import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.request.ChangesTokenRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
@@ -23,9 +22,7 @@ import kotlinx.coroutines.flow.flow
 import java.io.IOException
 import java.time.Instant
 import java.time.ZonedDateTime
-import kotlin.collections.containsAll
-import kotlin.text.compareTo
-import kotlin.toString
+
 
 const val MIN_SUPPORTED_SDK = Build.VERSION_CODES.O_MR1
 
@@ -68,9 +65,6 @@ class HealthConnectManager(private val context: Context) {
     }
 
     // Check Health Connect availability
-    var availability = mutableStateOf(HealthConnectAvailability.NOT_SUPPORTED)
-        private set
-
     fun checkAvailability(): HealthConnectAvailability {
         val sdkStatus = HealthConnectClient.getSdkStatus(context)
         Log.d(TAG, "SDK Status: $sdkStatus")
@@ -105,8 +99,9 @@ class HealthConnectManager(private val context: Context) {
         return try {
             Log.d(TAG, "Attempting to write workout: ${workout.workout.workoutId}")
 
-            if (availability.value != HealthConnectAvailability.INSTALLED) {
-                Log.e(TAG, "Health Connect not installed")
+            val currentAvailability = checkAvailability()
+            if (currentAvailability != HealthConnectAvailability.INSTALLED) {
+                Log.e(TAG, "Health Connect not available: $currentAvailability")
                 return Result.failure(Exception("Health Connect not available"))
             }
 
@@ -125,17 +120,36 @@ class HealthConnectManager(private val context: Context) {
                 ZonedDateTime.now().zone
             )
 
+            // Check if this workout already exists in Health Connect
+            val existingSessions = readWorkoutSessions(start.toInstant(), end.toInstant())
+            val workoutExists = existingSessions.any { session ->
+                session.startTime == start.toInstant() &&
+                session.endTime == end.toInstant() &&
+                session.exerciseType == ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING
+            }
+
+            if (workoutExists) {
+                Log.d(TAG, "Workout already exists in Health Connect, skipping")
+                return Result.success(Unit)
+            }
+
+            // Create exercise segments from set groups
+            val segments = createExerciseSegments(workout.setGroups, start, end)
+
             val sessionRecord = ExerciseSessionRecord(
-                metadata = Metadata.manualEntry(),
+                metadata = Metadata.manualEntry(
+                    clientRecordId = workout.workout.workoutId.toString()
+                ),
                 startTime = start.toInstant(),
                 startZoneOffset = start.offset,
                 endTime = end.toInstant(),
                 endZoneOffset = end.offset,
                 exerciseType = ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING,
-                title = workout.gym?.name
+                title = "${workout.gym?.name ?: "Workout"} - Strength Training",
+                segments = segments
             )
 
-            Log.d(TAG, "Writing session: ${sessionRecord.title}, duration: ${sessionRecord.endTime.epochSecond - sessionRecord.startTime.epochSecond}s")
+            Log.d(TAG, "Writing session: ${sessionRecord.title}, duration: ${sessionRecord.endTime.epochSecond - sessionRecord.startTime.epochSecond}s, segments: ${segments.size}")
 
             healthConnectClient.insertRecords(listOf(sessionRecord))
             Log.d(TAG, "Successfully wrote workout to Health Connect")
@@ -143,6 +157,34 @@ class HealthConnectManager(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to write workout to Health Connect", e)
             Result.failure(e)
+        }
+    }
+
+    private fun createExerciseSegments(
+        setGroups: List<SetGroupWithEntries>,
+        workoutStart: ZonedDateTime,
+        workoutEnd: ZonedDateTime
+    ): List<ExerciseSegment> {
+        if (setGroups.isEmpty()) return emptyList()
+
+        val totalDurationMs = workoutEnd.toInstant().toEpochMilli() - workoutStart.toInstant().toEpochMilli()
+        val segmentDurationMs = totalDurationMs / setGroups.size
+
+        return setGroups.mapIndexed { index, setGroup ->
+            val segmentStart = workoutStart.toInstant().plusMillis(index * segmentDurationMs)
+            val segmentEnd = workoutStart.toInstant().plusMillis((index + 1) * segmentDurationMs)
+
+            // Calculate total repetitions for this set group
+            val totalReps = setGroup.entries.sumOf { entry ->
+                entry.reps.toInt()
+            }
+
+            ExerciseSegment(
+                startTime = segmentStart,
+                endTime = segmentEnd,
+                segmentType = ExerciseSegment.EXERCISE_SEGMENT_TYPE_WEIGHTLIFTING,
+                repetitions = totalReps
+            )
         }
     }
 
@@ -161,6 +203,53 @@ class HealthConnectManager(private val context: Context) {
             response.records
         } catch (e: Exception) {
             emptyList()
+        }
+    }
+
+    // Read all workout sessions from Health Connect with no time constraints
+    suspend fun readAllExerciseSessions(): Result<List<ExerciseSessionRecord>> {
+        return try {
+            Log.d(TAG, "Reading all exercise sessions from Health Connect")
+
+            if (!hasRequiredPermissions()) {
+                Log.e(TAG, "Missing required permissions")
+                return Result.failure(Exception("Missing Health Connect permissions"))
+            }
+
+            val request = ReadRecordsRequest(
+                recordType = ExerciseSessionRecord::class,
+                timeRangeFilter = TimeRangeFilter.between(
+                    Instant.EPOCH, // Beginning of time
+                    Instant.now().plusMillis(1000 * 60 * 60 * 24) // Future (tomorrow)
+                )
+            )
+
+            val response = healthConnectClient.readRecords(request)
+            Log.d(TAG, "Found ${response.records.size} exercise sessions")
+
+            // Log details about each record
+            response.records.forEachIndexed { index, record ->
+                Log.d(TAG, "Record $index: ${record.title}, " +
+                        "start=${record.startTime}, " +
+                        "end=${record.endTime}, " +
+                        "type=${record.exerciseType}, " +
+                        "segments=${record.segments.size}, " +
+                        "metadata.clientRecordId=${record.metadata.clientRecordId}")
+
+                // Log details about each segment if any
+                record.segments.forEachIndexed { segIndex, segment ->
+                    Log.d(TAG, "  Segment $segIndex: " +
+                            "type=${segment.segmentType}, " +
+                            "reps=${segment.repetitions}, " +
+                            "start=${segment.startTime}, " +
+                            "end=${segment.endTime}")
+                }
+            }
+
+            Result.success(response.records)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error reading all exercise sessions", e)
+            Result.failure(e)
         }
     }
 
