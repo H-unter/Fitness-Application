@@ -9,6 +9,7 @@ import com.example.fitnessapp.data.SetEntry
 import com.example.fitnessapp.data.SetGroup
 import com.example.fitnessapp.data.WeightUnit
 import com.example.fitnessapp.views.CurrentWorkoutUIState
+import com.example.fitnessapp.views.WorkoutValidationState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,7 +29,8 @@ class CurrentWorkoutViewModel(
             setGroups = emptyList(),
             exerciseUiList = emptyList(),
             gyms = emptyList(),
-            selectedGym = null
+            selectedGym = null,
+            validationState = WorkoutValidationState.Valid
         )
     )
     val uiState: StateFlow<CurrentWorkoutUIState> = _uiState.asStateFlow()
@@ -38,6 +40,7 @@ class CurrentWorkoutViewModel(
         workoutRepository.getCurrentWorkoutOrNull()
             .onEach { workout ->
                 _uiState.value = _uiState.value.copy(currentWorkout = workout)
+                validateWorkout()
             }
             .launchIn(viewModelScope)
 
@@ -52,6 +55,7 @@ class CurrentWorkoutViewModel(
                         }
                     }
                 )
+                validateWorkout()
             }
             .launchIn(viewModelScope)
 
@@ -65,10 +69,38 @@ class CurrentWorkoutViewModel(
                     if (workout.locationId > 0) {
                         val gym = gyms.find { it.id == workout.locationId }
                         _uiState.value = _uiState.value.copy(selectedGym = gym)
+                        validateWorkout()
                     }
                 }
             }
             .launchIn(viewModelScope)
+    }
+
+    /**
+     * Validates the current workout state and updates the UI state validation
+     */
+    private fun validateWorkout() {
+        val currentState = _uiState.value
+        val newValidationState = when {
+            currentState.selectedGym == null ->
+                WorkoutValidationState.NoGymSelected
+            currentState.setGroups.isEmpty() ->
+                WorkoutValidationState.NoExercises
+
+            currentState.setGroups.any { group ->
+                group.entries.isEmpty() || group.entries.all { entry ->
+                    entry.weight.isBlank() || entry.reps.isBlank()
+                }
+            } ->
+                WorkoutValidationState.NoExercises
+
+            else ->
+                WorkoutValidationState.Valid
+        }
+
+        if (currentState.validationState != newValidationState) {
+            _uiState.value = currentState.copy(validationState = newValidationState)
+        }
     }
 
     fun selectGym(gymId: Int) = viewModelScope.launch {
@@ -80,6 +112,7 @@ class CurrentWorkoutViewModel(
             uiState.value.currentWorkout?.let { workout ->
                 workoutRepository.updateWorkoutGym(workout.id.toLong(), gym.id)
             }
+            validateWorkout()
         }
     }
 
@@ -114,7 +147,7 @@ class CurrentWorkoutViewModel(
             name          = selectedExercise.name,
             weightUnit    = WeightUnit.KG,
             exerciseName  = selectedExercise.name,
-            entries       = listOf(SetEntry(weight = "0", reps = "0"))
+            entries       = listOf(SetEntry(weight = "", reps = ""))
         )
 
         workoutRepository.addSetGroupToWorkout(newSetGroup)
@@ -136,7 +169,7 @@ class CurrentWorkoutViewModel(
         workoutRepository.removeSetFromExercise(exerciseIndex, setIndex)
     }
 
-    // update one set’s weight in a given exercise
+    // update one set's weight in a given exercise
     fun updateSetWeight(exerciseIndex: Int, setIndex: Int, newWeight: String) = viewModelScope.launch {
         workoutRepository.updateSetWeight(exerciseIndex, setIndex, newWeight)
     }
@@ -145,5 +178,4 @@ class CurrentWorkoutViewModel(
     fun updateSetReps(exerciseIndex: Int, setIndex: Int, newReps: String) = viewModelScope.launch {
         workoutRepository.updateSetReps(exerciseIndex, setIndex, newReps)
     }
-
 }

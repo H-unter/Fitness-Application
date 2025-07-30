@@ -23,6 +23,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EditLocationAlt
 import androidx.compose.material.icons.outlined.FitnessCenter
+import androidx.compose.material.icons.outlined.Repeat
+import androidx.compose.material.icons.outlined.Scale
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -45,6 +47,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -173,11 +176,13 @@ fun CurrentWorkoutScreenContent(
                 gyms = uiState.gyms,
                 onGymSelected = onGymSelected,
                 onCreateGym = onCreateGym,
-                onCompleteWorkout = onCompleteWorkout
+                onCompleteWorkout = onCompleteWorkout,
+                validationState = uiState.validationState
             )
         },
         bottomBar = { BottomNavigationBar(navController = navController) }
-    ) { paddingValues: PaddingValues ->
+    )
+    { paddingValues: PaddingValues ->
         CurrentWorkout(
             exercises = uiState.exerciseUiList,
             setGroups = uiState.setGroups,
@@ -361,7 +366,7 @@ fun Exercise(
 
 @Composable
 fun ElapsedTimeDisplay(startTime: Long, modifier: Modifier = Modifier) {
-    var elapsedTime by remember { mutableStateOf(0L) }
+    var elapsedTime by remember { mutableLongStateOf(0L) }
 
     // Update timer every second
     LaunchedEffect(startTime) {
@@ -392,10 +397,12 @@ fun WorkoutTopAppBar(
     gyms: List<Gym>,
     onGymSelected: (Int) -> Unit = {},
     onCreateGym: (String) -> Unit = {},
-    onCompleteWorkout: () -> Unit = {}
+    onCompleteWorkout: () -> Unit = {},
+    validationState: WorkoutValidationState = WorkoutValidationState.Valid
 ) {
     var expanded by remember { mutableStateOf(false) }
     var showAddGymDialog by remember { mutableStateOf(false) }
+    var showFinishWorkoutDialog by remember { mutableStateOf(false) }
     var newGymName by remember { mutableStateOf("") }
 
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
@@ -428,6 +435,33 @@ fun WorkoutTopAppBar(
             },
             dismissButton = {
                 TextButton(onClick = { showAddGymDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Finish workout confirmation dialog
+    if (showFinishWorkoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showFinishWorkoutDialog = false },
+            title = { Text("Finish Workout") },
+            text = { Text(validationState.message) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (validationState.canFinish) {
+                            onCompleteWorkout()
+                            showFinishWorkoutDialog = false
+                        }
+                    },
+                    enabled = validationState.canFinish
+                ) {
+                    Text("Finish")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showFinishWorkoutDialog = false }) {
                     Text("Cancel")
                 }
             }
@@ -505,7 +539,7 @@ fun WorkoutTopAppBar(
             }
         },
         actions = {
-            IconButton(onClick = onCompleteWorkout) {
+            IconButton(onClick = { showFinishWorkoutDialog = true }) {
                 Icon(Icons.Default.Check, contentDescription = "Complete Workout")
             }
         },
@@ -590,22 +624,22 @@ fun SetRow(
             modifier = modifier
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
                 text = "$setIndex",
                 style = MaterialTheme.typography.bodyLarge,
-                modifier = modifier.width(24.dp)
+                modifier = Modifier.width(10.dp)
             )
 
             SetTextField(
                 value = weight,
                 onValueChange = onWeightChange,
                 label = "Weight",
-                modifier = modifier.weight(10f),
+                modifier = Modifier.weight(1f),
                 leadingIcon = {
                     Icon(
-                        imageVector = Icons.Outlined.FitnessCenter,
+                        imageVector = Icons.Outlined.Scale,
                         contentDescription = "weight"
                     )
                 },
@@ -616,7 +650,13 @@ fun SetRow(
                 value = reps,
                 onValueChange = onRepsChange,
                 label = "Reps",
-                modifier = modifier.weight(10f)
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Outlined.Repeat,
+                        contentDescription = "reps"
+                    )
+                },
+                modifier = Modifier.weight(1f)
             )
         }
     }
@@ -630,18 +670,37 @@ fun SetTextField(
     label: String,
     leadingIcon: @Composable (() -> Unit)? = null,
     trailingElement: @Composable (() -> Unit)? = null
-
 ) {
     OutlinedTextField(
         value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
+        onValueChange = { newValue ->
+            // Only allow digits, decimal points (for weight), and empty strings
+            if (newValue.isEmpty() || newValue.all { ch ->
+                ch.isDigit() || (label == "Weight" && ch == '.')
+            }) {
+                // Make sure we don't have multiple decimal points for weight
+                if (label != "Weight" || newValue.count { it == '.' } <= 1) {
+                    onValueChange(newValue)
+                }
+            }
+        },
+        label = {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall, // Smaller font for label
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
+        },
         leadingIcon = leadingIcon,
         trailingIcon = trailingElement,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        keyboardOptions = KeyboardOptions(
+            keyboardType = if (label == "Weight") KeyboardType.Decimal else KeyboardType.Number
+        ),
         modifier = modifier,
         singleLine = true,
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(12.dp),
+        isError = value == "0"
     )
 }
 
@@ -678,7 +737,8 @@ fun Preview_CurrentWorkoutScreenContent() {
                 it.exerciseName to it.entries.map { entry -> entry.weight to entry.reps }
             },
             gyms = emptyList(),
-            selectedGym = null
+            selectedGym = null,
+            validationState = WorkoutValidationState.NoGymSelected
         )
 
         // Use MockNavController instead of casting

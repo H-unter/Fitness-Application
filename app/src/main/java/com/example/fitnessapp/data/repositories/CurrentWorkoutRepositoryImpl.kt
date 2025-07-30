@@ -99,13 +99,17 @@ class CurrentWorkoutRepositoryImpl(
             val setGroupId = setGroupDao.insertSetGroup(newSetGroup).toInt()
 
             setGroup.entries.forEachIndexed { index, setItem ->
+                // Convert empty string to null to properly represent empty fields
+                val weight = if (setItem.weight.isEmpty()) null else setItem.weight.toFloatOrNull()
+                val reps = if (setItem.reps.isEmpty()) null else setItem.reps.toIntOrNull()
+
                 setEntryDao.insertSetEntry(
                     SetEntryEntity(
                         setEntryId = 0, // auto generated
                         setGroupId = setGroupId,
                         setIndex = index,
-                        weight = setItem.weight.toFloat(),
-                        reps = setItem.reps.toInt()
+                        weight = weight, // Use null for empty strings
+                        reps = reps    // Use null for empty strings
                     )
                 )
             }
@@ -129,8 +133,8 @@ class CurrentWorkoutRepositoryImpl(
                     setEntryId = 0, // auto generated
                     setGroupId = targetSetGroup.group.setGroupId,
                     setIndex = nextSetIndex,
-                    weight = 0f,
-                    reps = 0
+                    weight = null, // Use null instead of 0f to represent empty string
+                    reps = null   // Use null instead of 0 to represent empty string
                 )
             )
         }
@@ -152,7 +156,15 @@ class CurrentWorkoutRepositoryImpl(
             val workoutWithGroups = workoutDao.getWorkoutWithSetGroupsAndEntries(currentWorkout.workoutId).first()
             val targetSetGroup = workoutWithGroups.setGroups.getOrNull(exerciseIndex) ?: return@withContext
             val targetSetEntry = targetSetGroup.entries.find { it.setIndex == setIndex } ?: return@withContext
-            setEntryDao.updateSetEntry(targetSetEntry.copy(weight = weight.toFloatOrNull() ?: 0f))
+
+            // Store the raw input weight to preserve exact user input
+            val weightValue = if (weight.isEmpty()) null
+                             else try {
+                                 weight.toFloat()
+                             } catch (e: NumberFormatException) {
+                                 weight.toFloatOrNull() ?: 0f
+                             }
+            setEntryDao.updateSetEntry(targetSetEntry.copy(weight = weightValue))
         }
     }
 
@@ -162,7 +174,10 @@ class CurrentWorkoutRepositoryImpl(
             val workoutWithGroups = workoutDao.getWorkoutWithSetGroupsAndEntries(currentWorkout.workoutId).first()
             val targetSetGroup = workoutWithGroups.setGroups.getOrNull(exerciseIndex) ?: return@withContext
             val targetSetEntry = targetSetGroup.entries.find { it.setIndex == setIndex } ?: return@withContext
-            setEntryDao.updateSetEntry(targetSetEntry.copy(reps = reps.toIntOrNull() ?: 0))
+
+            // Convert empty string to null
+            val repsValue = if (reps.isEmpty()) null else reps.toIntOrNull() ?: 0
+            setEntryDao.updateSetEntry(targetSetEntry.copy(reps = repsValue))
         }
     }
 }

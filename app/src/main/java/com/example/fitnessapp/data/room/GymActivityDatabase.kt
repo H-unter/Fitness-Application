@@ -11,7 +11,7 @@ import androidx.room.TypeConverters
         SetGroupEntity::class,
         SetEntryEntity::class,
         GymEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(WeightUnitTypeConverters::class)

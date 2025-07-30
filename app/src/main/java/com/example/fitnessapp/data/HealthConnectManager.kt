@@ -175,9 +175,8 @@ class HealthConnectManager(private val context: Context) {
             val segmentStart = workoutStart.toInstant().plusMillis(index * segmentDurationMs)
             val segmentEnd = workoutStart.toInstant().plusMillis((index + 1) * segmentDurationMs)
 
-            // Calculate total repetitions for this set group
             val totalReps = setGroup.entries.sumOf { entry ->
-                entry.reps.toInt()
+                entry.reps?.toInt() ?: 0
             }
 
             ExerciseSegment(
