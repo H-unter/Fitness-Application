@@ -1,5 +1,15 @@
-package com.example.fitnessapp.data
+package com.example.fitnessapp.data.repositories
 
+import com.example.fitnessapp.data.room.ExerciseDao
+import com.example.fitnessapp.data.room.SetEntryDao
+import com.example.fitnessapp.data.room.SetEntryEntity
+import com.example.fitnessapp.data.SetGroup
+import com.example.fitnessapp.data.room.SetGroupDao
+import com.example.fitnessapp.data.room.SetGroupEntity
+import com.example.fitnessapp.data.Workout
+import com.example.fitnessapp.data.room.WorkoutDao
+import com.example.fitnessapp.data.room.WorkoutEntity
+import com.example.fitnessapp.data.room.toDomain
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -93,9 +103,9 @@ class CurrentWorkoutRepositoryImpl(
                     SetEntryEntity(
                         setEntryId = 0, // auto generated
                         setGroupId = setGroupId,
-                        setIndex   = index,
-                        weight     = setItem.weight.toFloat(),
-                        reps       = setItem.reps.toInt()
+                        setIndex = index,
+                        weight = setItem.weight.toFloat(),
+                        reps = setItem.reps.toInt()
                     )
                 )
             }

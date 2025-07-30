@@ -1,7 +1,8 @@
-package com.example.fitnessapp.data
+package com.example.fitnessapp.data.room
 
 import androidx.room.Embedded
 import androidx.room.Relation
+import com.example.fitnessapp.data.Workout
 
 // https://developer.android.com/training/data-storage/room/relationships/nested
 

@@ -1,7 +1,7 @@
-package com.example.fitnessapp.data
+package com.example.fitnessapp.data.repositories
 
+import com.example.fitnessapp.data.Gym
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 
 interface GymRepository {
     fun getAllGyms(): Flow<List<Gym>>

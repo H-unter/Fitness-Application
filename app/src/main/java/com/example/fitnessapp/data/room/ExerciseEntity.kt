@@ -1,4 +1,4 @@
-package com.example.fitnessapp.data
+package com.example.fitnessapp.data.room
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey

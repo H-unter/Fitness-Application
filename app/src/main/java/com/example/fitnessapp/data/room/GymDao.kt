@@ -1,4 +1,4 @@
-package com.example.fitnessapp.data
+package com.example.fitnessapp.data.room
 
 import androidx.room.Dao
 import androidx.room.Delete

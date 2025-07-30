@@ -1,4 +1,6 @@
-package com.example.fitnessapp.data
+package com.example.fitnessapp.data.repositories
+import com.example.fitnessapp.data.Exercise
+import com.example.fitnessapp.data.SetGroup
 import kotlinx.coroutines.flow.Flow
 
 interface ExerciseRepository {

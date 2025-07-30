@@ -2,14 +2,12 @@ package com.example.fitnessapp.viewmodel
 
 import android.util.Log
 import androidx.health.connect.client.PermissionController
-import androidx.health.connect.client.permission.HealthPermission
-import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.fitnessapp.data.HealthConnectAvailability
 import com.example.fitnessapp.data.HealthConnectManager
-import com.example.fitnessapp.data.WorkoutDao
-import com.example.fitnessapp.data.toDomain
+import com.example.fitnessapp.data.room.WorkoutDao
+import com.example.fitnessapp.data.room.toDomain
 import com.example.fitnessapp.views.HealthConnectSession
 import com.example.fitnessapp.views.WorkoutHistoryItem
 import com.example.fitnessapp.views.WorkoutHistoryUIState
@@ -21,7 +19,6 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.collections.containsAll
 
 class WorkoutHistoryViewModel(
     private val workoutDao: WorkoutDao,

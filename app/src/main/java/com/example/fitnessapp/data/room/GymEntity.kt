@@ -1,7 +1,8 @@
-package com.example.fitnessapp.data
+package com.example.fitnessapp.data.room
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.example.fitnessapp.data.Gym
 
 @Entity(tableName = "Gym")
 data class GymEntity(

@@ -2,9 +2,9 @@ package com.example.fitnessapp.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.fitnessapp.data.CurrentWorkoutRepository
-import com.example.fitnessapp.data.ExerciseRepository
-import com.example.fitnessapp.data.GymRepository
+import com.example.fitnessapp.data.repositories.CurrentWorkoutRepository
+import com.example.fitnessapp.data.repositories.ExerciseRepository
+import com.example.fitnessapp.data.repositories.GymRepository
 import com.example.fitnessapp.data.SetEntry
 import com.example.fitnessapp.data.SetGroup
 import com.example.fitnessapp.data.WeightUnit

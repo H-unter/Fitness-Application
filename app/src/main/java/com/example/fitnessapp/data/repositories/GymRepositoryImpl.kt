@@ -1,5 +1,8 @@
-package com.example.fitnessapp.data
+package com.example.fitnessapp.data.repositories
 
+import com.example.fitnessapp.data.Gym
+import com.example.fitnessapp.data.room.GymDao
+import com.example.fitnessapp.data.room.GymEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 

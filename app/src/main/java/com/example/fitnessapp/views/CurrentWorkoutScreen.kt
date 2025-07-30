@@ -58,6 +58,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.example.fitnessapp.data.Gym
 import com.example.fitnessapp.data.SetGroup
+import com.example.fitnessapp.data.WeightUnit
 import com.example.fitnessapp.navigation.Screens
 import com.example.fitnessapp.ui.theme.FitnessappTheme
 import com.example.fitnessapp.viewmodel.CurrentWorkoutViewModel
@@ -655,7 +656,7 @@ fun Preview_CurrentWorkoutScreenContent() {
                 workoutId = 1,
                 exerciseId = 101,
                 name = "Bench Press",
-                weightUnit = com.example.fitnessapp.data.WeightUnit.KG,
+                weightUnit = WeightUnit.KG,
                 exerciseName = "Bench Press",
                 entries = listOf(
                     com.example.fitnessapp.data.SetEntry(weight = "50", reps = "8"),

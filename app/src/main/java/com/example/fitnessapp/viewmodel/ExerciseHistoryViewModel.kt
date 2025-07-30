@@ -5,7 +5,7 @@ import androidx.annotation.RequiresApi
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.fitnessapp.data.ExerciseRepository
+import com.example.fitnessapp.data.repositories.ExerciseRepository
 import com.example.fitnessapp.data.SetGroup
 import com.example.fitnessapp.views.ExerciseHistoryUIState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
