@@ -471,24 +471,28 @@ fun WorkoutTopAppBar(
     TopAppBar(
         title = {
             Column {
-                Text(
-                    text = "Current Workout",
-                    style = MaterialTheme.typography.headlineSmall
-                )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = selectedGym?.name ?: "No Gym Selected",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                    )
-                    ElapsedTimeDisplay(
-                        startTime = startTime,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
+                Text(
+                    text = "Current Workout",
+                    style = MaterialTheme.typography.headlineSmall
+                )
+                ElapsedTimeDisplay(
+                    startTime = startTime,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
                 }
+                Text(
+                    text = selectedGym?.name ?: "No Gym Selected",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (selectedGym == null) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                    }
+                )
             }
         },
         navigationIcon = {

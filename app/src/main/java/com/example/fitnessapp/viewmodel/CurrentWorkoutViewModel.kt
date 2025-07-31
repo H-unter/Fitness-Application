@@ -40,6 +40,7 @@ class CurrentWorkoutViewModel(
         workoutRepository.getCurrentWorkoutOrNull()
             .onEach { workout ->
                 _uiState.value = _uiState.value.copy(currentWorkout = workout)
+                updateSelectedGymFromWorkout()
                 validateWorkout()
             }
             .launchIn(viewModelScope)
@@ -63,17 +64,26 @@ class CurrentWorkoutViewModel(
         gymRepository.getAllGyms()
             .onEach { gyms ->
                 _uiState.value = _uiState.value.copy(gyms = gyms)
-
-                // If we have a current workout, load its gym
-                uiState.value.currentWorkout?.let { workout ->
-                    if (workout.locationId > 0) {
-                        val gym = gyms.find { it.id == workout.locationId }
-                        _uiState.value = _uiState.value.copy(selectedGym = gym)
-                        validateWorkout()
-                    }
-                }
+                updateSelectedGymFromWorkout()
+                validateWorkout()
             }
             .launchIn(viewModelScope)
+    }
+
+    /**
+     * Updates the selected gym based on the current workout's locationId
+     */
+    private fun updateSelectedGymFromWorkout() {
+        val currentState = _uiState.value
+        val workout = currentState.currentWorkout
+        val gyms = currentState.gyms
+
+        if (workout != null && workout.locationId > 0 && gyms.isNotEmpty()) {
+            val gym = gyms.find { it.id == workout.locationId }
+            if (gym != null && currentState.selectedGym?.id != gym.id) {
+                _uiState.value = currentState.copy(selectedGym = gym)
+            }
+        }
     }
 
     /**
