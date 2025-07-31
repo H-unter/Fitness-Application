@@ -187,7 +187,7 @@ class CurrentWorkoutRepositoryImpl(
             val workoutWithGroups = workoutDao.getWorkoutWithSetGroupsAndEntries(currentWorkout.workoutId).first()
             val targetSetGroup = workoutWithGroups.setGroups.getOrNull(exerciseIndex) ?: return@withContext
             val targetSetEntry = targetSetGroup.entries.find { it.setIndex == setIndex } ?: return@withContext
-
+            
             setEntryDao.updateSetEntry(targetSetEntry.copy(completed = completed))
         }
     }

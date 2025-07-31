@@ -71,5 +71,6 @@ dependencies {
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     implementation("androidx.health.connect:connect-client:1.1.0-rc03")
+    testImplementation("androidx.health.connect:connect-testing:1.0.0-alpha03")
     ksp(libs.room.compiler)
 }
