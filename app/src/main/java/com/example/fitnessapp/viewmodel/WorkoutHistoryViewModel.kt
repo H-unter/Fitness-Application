@@ -71,7 +71,7 @@ class WorkoutHistoryViewModel(
     }
 
     suspend fun checkPermissionsAndRun() {
-        val granted = healthConnectManager.healthConnectClient.permissionController.getGrantedPermissions()
+        val granted = healthConnectManager.getGrantedPermissions()
         if (granted.containsAll(HealthConnectManager.PERMISSIONS)) {
             // Permissions already granted; proceed with inserting or reading data
             syncHistoricalWorkoutsToHealthConnect()
@@ -111,6 +111,7 @@ class WorkoutHistoryViewModel(
             }
         }
     }
+
     fun syncHistoricalWorkoutsToHealthConnect() {
         viewModelScope.launch {
             try {

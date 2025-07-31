@@ -34,9 +34,10 @@ const val MIN_SUPPORTED_SDK = Build.VERSION_CODES.O_MR1
  *
  * https://github.com/android/android-health-connect-codelab/blob/main/finished/src/main/java/com/example/healthconnect/codelab/data/HealthConnectManager.kt
  */
-class HealthConnectManager(private val context: Context) {
-
-    internal val healthConnectClient by lazy { HealthConnectClient.getOrCreate(context) }
+class HealthConnectManager(
+    private val context: Context,
+    val healthConnectClient: HealthConnectClient = HealthConnectClient.getOrCreate(context)
+) {
 
     companion object {
         private const val TAG = "HealthConnectManager"
@@ -63,6 +64,10 @@ class HealthConnectManager(private val context: Context) {
             Log.e(TAG, "Error checking permissions", e)
             false
         }
+    }
+
+    suspend fun getGrantedPermissions(): Set<String> {
+        return healthConnectClient.permissionController.getGrantedPermissions()
     }
 
     // Check Health Connect availability
