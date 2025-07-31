@@ -94,6 +94,7 @@ class CurrentWorkoutViewModel(
         val newValidationState = when {
             currentState.selectedGym == null ->
                 WorkoutValidationState.NoGymSelected
+
             currentState.setGroups.isEmpty() ->
                 WorkoutValidationState.NoExercises
 
@@ -103,6 +104,9 @@ class CurrentWorkoutViewModel(
                 }
             } ->
                 WorkoutValidationState.NoExercises
+
+            !currentState.areAllSetsCompleted() ->
+                WorkoutValidationState.UncompletedSets
 
             else ->
                 WorkoutValidationState.Valid
@@ -188,4 +192,32 @@ class CurrentWorkoutViewModel(
     fun updateSetReps(exerciseIndex: Int, setIndex: Int, newReps: String) = viewModelScope.launch {
         workoutRepository.updateSetReps(exerciseIndex, setIndex, newReps)
     }
+
+    // Update one set's completion status and persist to database
+    fun toggleSetCompletion(exerciseIndex: Int, setIndex: Int, completed: Boolean) = viewModelScope.launch {
+        val currentState = _uiState.value
+
+        // First update the UI state immediately for responsiveness
+        val updatedSetGroups = currentState.setGroups.mapIndexed { sgIndex, group ->
+            if (sgIndex == exerciseIndex) {
+                val updatedEntries = group.entries.mapIndexed { entryIndex, entry ->
+                    if (entryIndex == setIndex) {
+                        entry.copy(completed = completed)
+                    } else {
+                        entry
+                    }
+                }
+                group.copy(entries = updatedEntries)
+            } else {
+                group
+            }
+        }
+
+        _uiState.value = currentState.copy(setGroups = updatedSetGroups)
+
+        workoutRepository.updateSetCompletion(exerciseIndex, setIndex, completed)
+
+        validateWorkout()
+    }
+
 }

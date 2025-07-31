@@ -23,6 +23,8 @@ interface CurrentWorkoutRepository {
     suspend fun addSetToExercise(exerciseIndex: Int) // add a set to a specific exercise
     suspend fun removeSetFromExercise(exerciseIndex: Int, setIndex: Int) // remove a set from a specific exercise
 
-    suspend fun updateSetWeight(exerciseIndex: Int, setIndex: Int, weight: String) // edit the enum attribute of one of the setGroup objects within the setGroup list
-    suspend fun updateSetReps(exerciseIndex: Int, setIndex: Int, reps: String) // edit the enum attribute of one of the setGroup objects within the setGroup list
+    suspend fun updateSetWeight(exerciseIndex: Int, setIndex: Int, weight: String)
+    suspend fun updateSetReps(exerciseIndex: Int, setIndex: Int, reps: String)
+
+    suspend fun updateSetCompletion(exerciseIndex: Int, setIndex: Int, completed: Boolean)
 }

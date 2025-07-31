@@ -180,4 +180,15 @@ class CurrentWorkoutRepositoryImpl(
             setEntryDao.updateSetEntry(targetSetEntry.copy(reps = repsValue))
         }
     }
+
+    override suspend fun updateSetCompletion(exerciseIndex: Int, setIndex: Int, completed: Boolean) {
+        withContext(dispatcher) {
+            val currentWorkout = _currentWorkout.value ?: return@withContext
+            val workoutWithGroups = workoutDao.getWorkoutWithSetGroupsAndEntries(currentWorkout.workoutId).first()
+            val targetSetGroup = workoutWithGroups.setGroups.getOrNull(exerciseIndex) ?: return@withContext
+            val targetSetEntry = targetSetGroup.entries.find { it.setIndex == setIndex } ?: return@withContext
+
+            setEntryDao.updateSetEntry(targetSetEntry.copy(completed = completed))
+        }
+    }
 }

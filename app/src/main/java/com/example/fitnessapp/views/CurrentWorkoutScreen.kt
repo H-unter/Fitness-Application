@@ -28,6 +28,7 @@ import androidx.compose.material.icons.outlined.Scale
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedButton
@@ -42,6 +43,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -108,6 +110,7 @@ fun CurrentWorkoutScreen(
         onCompleteWorkout = viewModel::finishCurrentWorkout,
         onGymSelected = viewModel::selectGym,
         onCreateGym = viewModel::createNewGym,
+        onToggleSetCompletion = viewModel::toggleSetCompletion,
         modifier = modifier
     )
 }
@@ -166,6 +169,7 @@ fun CurrentWorkoutScreenContent(
     onCompleteWorkout: () -> Unit,
     onGymSelected: (Int) -> Unit,
     onCreateGym: (String) -> Unit,
+    onToggleSetCompletion: (Int, Int, Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -193,6 +197,7 @@ fun CurrentWorkoutScreenContent(
             onAddExercise = onAddExercise,
             onRemoveExercise = onRemoveExercise,
             onNavigateToStats = onNavigateToStats,
+            onToggleSetCompletion = onToggleSetCompletion,
             modifier = modifier.padding(paddingValues)
         )
     }
@@ -209,6 +214,7 @@ fun CurrentWorkout(
     onAddExercise: () -> Unit,
     onRemoveExercise: (exerciseIndex: Int) -> Unit,
     onNavigateToStats: (Long) -> Unit,
+    onToggleSetCompletion: (exerciseIndex: Int, setIndex: Int, completed: Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -218,10 +224,12 @@ fun CurrentWorkout(
     ) {
         itemsIndexed(exercises) { exerciseIndex, (exerciseName, sets) ->
             val exerciseId = setGroups[exerciseIndex].exerciseId.toLong()
+            val setGroup = setGroups[exerciseIndex]
             Exercise(
                 index = exerciseIndex,
                 name = exerciseName,
                 sets = sets,
+                setGroup = setGroup,
                 onWeightChange = { setIndex, newWeight ->
                     onExerciseWeightChange(exerciseIndex, setIndex, newWeight)
                 },
@@ -230,8 +238,11 @@ fun CurrentWorkout(
                 },
                 onAddSet = { onAddSetToExercise(exerciseIndex) },
                 onRemoveSet = { setIndex -> onRemoveSetFromExercise(exerciseIndex, setIndex) },
-                onNavigateToStats = { onNavigateToStats(exerciseId) }, // Pass ID here
-                onRemoveExercise = {onRemoveExercise(exerciseIndex)}
+                onNavigateToStats = { onNavigateToStats(exerciseId) },
+                onRemoveExercise = {onRemoveExercise(exerciseIndex)},
+                onToggleCompletion = { setIndex, completed ->
+                    onToggleSetCompletion(exerciseIndex, setIndex, completed)
+                }
             )
         }
 
@@ -256,12 +267,14 @@ fun Exercise(
     index: Int,
     name: String,
     sets: List<Pair<String, String>>,
+    setGroup: SetGroup,
     onWeightChange: (Int, String) -> Unit,
     onRepsChange: (Int, String) -> Unit,
     onAddSet: () -> Unit,
     onRemoveSet: (Int) -> Unit,
     onNavigateToStats: () -> Unit,
     onRemoveExercise: (index: Int) -> Unit,
+    onToggleCompletion: (Int, Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var selectedWeightUnit by remember { mutableStateOf("Kg") }
@@ -320,14 +333,48 @@ fun Exercise(
                     )
                 }
             }
+
+            // Column headings
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Set",
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.width(24.dp)
+                )
+                Text(
+                    text = "Weight ($selectedWeightUnit)",
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = "Reps",
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = "Done",
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.width(40.dp)
+                )
+            }
+
             sets.forEachIndexed { setIdx, (kg, reps) ->
+                val isCompleted = setGroup.entries.getOrNull(setIdx)?.completed ?: false
                 SetRow(
                     setIndex = setIdx + 1,
                     weight = kg,
                     reps = reps,
                     weightUnits = selectedWeightUnit,
+                    completed = isCompleted,
                     onWeightChange = { newKg -> onWeightChange(setIdx, newKg) },
-                    onRepsChange = { newReps -> onRepsChange(setIdx, newReps) }
+                    onRepsChange = { newReps -> onRepsChange(setIdx, newReps) },
+                    onCompletionChange = { completed -> onToggleCompletion(setIdx, completed) }
                 )
             }
 
@@ -607,62 +654,57 @@ fun SetRow(
     weight: String,
     weightUnits: String,
     reps: String,
+    completed: Boolean,
     onWeightChange: (String) -> Unit,
     onRepsChange: (String) -> Unit,
+    onCompletionChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        tonalElevation = 2.dp,
-        color = MaterialTheme.colorScheme.surface,
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 1.dp)
-            .border(
-                width = 2.75.dp,
-                color = MaterialTheme.colorScheme.primaryContainer,
-                shape = RoundedCornerShape(12.dp)
-            )
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Row(
-            modifier = modifier
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = "$setIndex",
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.width(10.dp)
-            )
+        Text(
+            text = "$setIndex",
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.width(24.dp)
+        )
 
-            SetTextField(
-                value = weight,
-                onValueChange = onWeightChange,
-                label = "Weight",
-                modifier = Modifier.weight(1f),
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Outlined.Scale,
-                        contentDescription = "weight"
-                    )
-                },
-                trailingElement = {Text(weightUnits)}
-            )
+        SetTextField(
+            value = weight,
+            onValueChange = onWeightChange,
+            label = "",
+            modifier = Modifier.weight(1f),
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Outlined.Scale,
+                    contentDescription = "weight"
+                )
+            },
+            weightUnit = weightUnits
+        )
 
-            SetTextField(
-                value = reps,
-                onValueChange = onRepsChange,
-                label = "Reps",
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Outlined.Repeat,
-                        contentDescription = "reps"
-                    )
-                },
-                modifier = Modifier.weight(1f)
-            )
-        }
+        SetTextField(
+            value = reps,
+            onValueChange = onRepsChange,
+            label = "",
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Outlined.Repeat,
+                    contentDescription = "reps"
+                )
+            },
+            modifier = Modifier.weight(1f)
+        )
+
+        Checkbox(
+            checked = completed,
+            onCheckedChange = onCompletionChange,
+            modifier = Modifier.width(40.dp)
+        )
     }
 }
 
@@ -673,7 +715,8 @@ fun SetTextField(
     onValueChange: (String) -> Unit,
     label: String,
     leadingIcon: @Composable (() -> Unit)? = null,
-    trailingElement: @Composable (() -> Unit)? = null
+    trailingElement: @Composable (() -> Unit)? = null,
+    weightUnit: String? = null
 ) {
     OutlinedTextField(
         value = value,
@@ -682,7 +725,6 @@ fun SetTextField(
             if (newValue.isEmpty() || newValue.all { ch ->
                 ch.isDigit() || (label == "Weight" && ch == '.')
             }) {
-                // Make sure we don't have multiple decimal points for weight
                 if (label != "Weight" || newValue.count { it == '.' } <= 1) {
                     onValueChange(newValue)
                 }
@@ -698,23 +740,24 @@ fun SetTextField(
         },
         leadingIcon = leadingIcon,
         trailingIcon = trailingElement,
+        suffix = {
+            Text( text = weightUnit ?: "",)
+        },
         keyboardOptions = KeyboardOptions(
             keyboardType = if (label == "Weight") KeyboardType.Decimal else KeyboardType.Number
         ),
         modifier = modifier,
         singleLine = true,
-        shape = RoundedCornerShape(12.dp),
         isError = value == "0"
     )
 }
 
 
-@Preview
 @Composable
 fun Preview_CurrentWorkoutScreenContent() {
     FitnessappTheme {
         val sampleSetGroups = listOf(
-            SetGroup(
+            com.example.fitnessapp.data.SetGroup(
                 setGroupId = 1,
                 workoutId = 1,
                 exerciseId = 101,
@@ -722,7 +765,7 @@ fun Preview_CurrentWorkoutScreenContent() {
                 weightUnit = WeightUnit.KG,
                 exerciseName = "Bench Press",
                 entries = listOf(
-                    com.example.fitnessapp.data.SetEntry(weight = "50", reps = "8"),
+                    com.example.fitnessapp.data.SetEntry(weight = "50", reps = "8", completed = true),
                     com.example.fitnessapp.data.SetEntry(weight = "55", reps = "6")
                 )
             )
@@ -760,7 +803,8 @@ fun Preview_CurrentWorkoutScreenContent() {
             onNavigateToStats = {},
             onCompleteWorkout = {},
             onGymSelected = {},
-            onCreateGym = {}
+            onCreateGym = {},
+            onToggleSetCompletion = { _, _, _ -> }
         )
     }
 }
