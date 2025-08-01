@@ -33,7 +33,7 @@ enum class WorkoutValidationState {
     Valid,
     NoGymSelected,
     NoExercises,
-    UncompletedSets;  // New state for uncompleted sets
+    UncompletedSets;
 
     val message: String
         get() = when(this) {

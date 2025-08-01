@@ -10,9 +10,14 @@ import com.example.fitnessapp.views.CurrentWorkoutScreen
 import com.example.fitnessapp.views.ExerciseListSelectionScreen
 import com.example.fitnessapp.views.ExerciseHistoryScreen
 import com.example.fitnessapp.views.WorkoutHistoryScreen
+import com.example.fitnessapp.views.SettingsScreen
+import com.example.fitnessapp.views.ThemePreference
 
 @Composable
-fun AppNavigation() {
+fun AppNavigation(
+    themePreference: ThemePreference,
+    onThemeChange: (Boolean) -> Unit
+) {
     val navController = rememberNavController()
     NavHost(navController = navController, startDestination = Screens.CurrentWorkoutScreen.route) {
 
@@ -21,7 +26,10 @@ fun AppNavigation() {
         }
 
         composable(Screens.ExerciseListSelectionScreen.route) {
-            ExerciseListSelectionScreen(navController = navController)
+            ExerciseListSelectionScreen(
+                navController = navController,
+                isDarkMode = themePreference.isDarkMode
+            )
         }
 
         composable(Screens.WorkoutHistoryScreen.route) {
@@ -37,5 +45,12 @@ fun AppNavigation() {
             )
         }
 
+        composable(Screens.SettingsScreen.route) {
+            SettingsScreen(
+                isDarkMode = themePreference.isDarkMode,
+                onDarkModeToggle = onThemeChange,
+                navController = navController
+            )
+        }
     }
 }

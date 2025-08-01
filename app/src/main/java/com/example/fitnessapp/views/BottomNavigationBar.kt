@@ -5,12 +5,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemColors
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -75,7 +73,14 @@ fun BottomNavigationBar(navController: NavHostController = rememberNavController
 
             // settings
             NavigationBarItem(
-                selected = false, onClick = { /*TODO*/ },
+                selected = navController.currentDestination?.route == Screens.SettingsScreen.route,
+                onClick = {
+                    navController.navigate(Screens.SettingsScreen.route) {
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
                 icon = {
                     Icon(
                         imageVector = Icons.Default.Settings,
