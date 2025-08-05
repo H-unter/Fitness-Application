@@ -1,7 +1,6 @@
 package com.example.fitnessapp.views
 
 import android.content.res.Configuration
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,7 +8,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -22,7 +23,6 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EditLocationAlt
-import androidx.compose.material.icons.outlined.FitnessCenter
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Scale
 import androidx.compose.material3.AlertDialog
@@ -43,7 +43,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -62,8 +61,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.example.fitnessapp.data.Gym
+import com.example.fitnessapp.data.SetEntry
 import com.example.fitnessapp.data.SetGroup
 import com.example.fitnessapp.data.WeightUnit
+import com.example.fitnessapp.data.Workout
 import com.example.fitnessapp.navigation.Screens
 import com.example.fitnessapp.ui.theme.FitnessappTheme
 import com.example.fitnessapp.viewmodel.CurrentWorkoutViewModel
@@ -137,7 +138,8 @@ fun EmptyWorkoutScreen(
                     actionIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 ))
         },
-        bottomBar = { BottomNavigationBar(navController = navController) }
+        bottomBar = { BottomNavigationBar(navController = navController) },
+        containerColor =  MaterialTheme.colorScheme.surfaceContainerLow
     ) { paddingValues ->
         Box(
             modifier = modifier
@@ -184,7 +186,8 @@ fun CurrentWorkoutScreenContent(
                 validationState = uiState.validationState
             )
         },
-        bottomBar = { BottomNavigationBar(navController = navController) }
+        bottomBar = { BottomNavigationBar(navController = navController) },
+        containerColor =  MaterialTheme.colorScheme.surfaceContainerLow
     )
     { paddingValues: PaddingValues ->
         CurrentWorkout(
@@ -225,7 +228,7 @@ fun CurrentWorkout(
         itemsIndexed(exercises) { exerciseIndex, (exerciseName, sets) ->
             val exerciseId = setGroups[exerciseIndex].exerciseId.toLong()
             val setGroup = setGroups[exerciseIndex]
-            Exercise(
+            SetGroupCard(
                 index = exerciseIndex,
                 name = exerciseName,
                 sets = sets,
@@ -263,7 +266,7 @@ fun CurrentWorkout(
 }
 
 @Composable
-fun Exercise(
+fun SetGroupCard(
     index: Int,
     name: String,
     sets: List<Pair<String, String>>,
@@ -308,20 +311,27 @@ fun Exercise(
                 UnitSelectorDropdown(
                     selectedUnit = selectedWeightUnit,
                     onUnitSelected = { selectedWeightUnit = it },
-                    modifier = Modifier.weight(30f)
+                    modifier = Modifier
+                        .weight(30f)
+                        .height(32.dp)
                 )
                 FilledIconButton(
                     onClick = {onNavigateToStats()},
-                    modifier = Modifier.weight(22f)
+                    modifier = Modifier
+                        .weight(22f)
+                        .size(32.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.BarChart,
-                        contentDescription = "Exercise Stats"
+                        contentDescription = "Exercise Stats",
+                        modifier = Modifier.size(16.dp)
                     )
                 }
                 FilledIconButton(
                     onClick = {onRemoveExercise(index)},
-                    modifier = Modifier.weight(22f),
+                    modifier = Modifier
+                        .weight(22f)
+                        .size(32.dp),
                     colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer,
                         contentColor   = MaterialTheme.colorScheme.onErrorContainer
@@ -329,7 +339,8 @@ fun Exercise(
                 ){
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Remove Exercise"
+                        contentDescription = "Remove Exercise",
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }
@@ -343,23 +354,23 @@ fun Exercise(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "Set",
-                    style = MaterialTheme.typography.labelMedium,
+                    text = "",
+                    style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.width(24.dp)
                 )
                 Text(
                     text = "Weight ($selectedWeightUnit)",
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.weight(1f)
                 )
                 Text(
                     text = "Reps",
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.weight(1f)
                 )
                 Text(
                     text = "Done",
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.width(40.dp)
                 )
             }
@@ -623,12 +634,17 @@ fun UnitSelectorDropdown(
     ) {
         Button(
             onClick = { expanded = true },
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+            modifier = Modifier.fillMaxSize()
         ) {
-            Text(text = selectedUnit)
+            Text(
+                text = selectedUnit,
+                style = MaterialTheme.typography.bodySmall
+            )
             Icon(
                 imageVector = Icons.Default.ArrowDropDown,
-                contentDescription = "Select Unit"
+                contentDescription = "Select Unit",
+                modifier = Modifier.size(12.dp)
             )
         }
         DropdownMenu(
@@ -660,10 +676,27 @@ fun SetRow(
     onCompletionChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Local state for text fields to maintain cursor position
+    var localWeight by remember(weight) { mutableStateOf(weight) }
+    var localReps by remember(reps) { mutableStateOf(reps) }
+
+    // Sync local state with external state when it changes
+    LaunchedEffect(weight) {
+        if (localWeight != weight) {
+            localWeight = weight
+        }
+    }
+
+    LaunchedEffect(reps) {
+        if (localReps != reps) {
+            localReps = reps
+        }
+    }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = 16.dp, vertical = 1.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -674,12 +707,16 @@ fun SetRow(
         )
 
         SetTextField(
-            value = weight,
-            onValueChange = onWeightChange,
+            value = localWeight,
+            onValueChange = { newValue ->
+                localWeight = newValue
+                onWeightChange(newValue)
+            },
             label = "",
             modifier = Modifier.weight(1f),
             leadingIcon = {
                 Icon(
+                    modifier = modifier.size(12.dp),
                     imageVector = Icons.Outlined.Scale,
                     contentDescription = "weight"
                 )
@@ -688,11 +725,15 @@ fun SetRow(
         )
 
         SetTextField(
-            value = reps,
-            onValueChange = onRepsChange,
+            value = localReps,
+            onValueChange = { newValue ->
+                localReps = newValue
+                onRepsChange(newValue)
+            },
             label = "",
             leadingIcon = {
                 Icon(
+                    modifier = modifier.size(12.dp),
                     imageVector = Icons.Outlined.Repeat,
                     contentDescription = "reps"
                 )
@@ -720,35 +761,39 @@ fun SetTextField(
 ) {
     OutlinedTextField(
         value = value,
+        modifier = modifier,
         onValueChange = { newValue ->
             // Only allow digits, decimal points (for weight), and empty strings
             if (newValue.isEmpty() || newValue.all { ch ->
-                ch.isDigit() || (label == "Weight" && ch == '.')
+                ch.isDigit() || ch == '.'
             }) {
-                if (label != "Weight" || newValue.count { it == '.' } <= 1) {
+                // Allow only one decimal point
+                if (newValue.count { it == '.' } <= 1) {
                     onValueChange(newValue)
                 }
             }
         },
-        label = {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodySmall, // Smaller font for label
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-            )
-        },
+        label = if (label.isNotEmpty()) {
+            {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+            }
+        } else null,
         leadingIcon = leadingIcon,
         trailingIcon = trailingElement,
-        suffix = {
-            Text( text = weightUnit ?: "",)
-        },
+        suffix = if (weightUnit != null) {
+            { Text(text = weightUnit) }
+        } else null,
         keyboardOptions = KeyboardOptions(
-            keyboardType = if (label == "Weight") KeyboardType.Decimal else KeyboardType.Number
+            keyboardType = if (weightUnit != null) KeyboardType.Decimal else KeyboardType.Number
         ),
-        modifier = modifier,
         singleLine = true,
-        isError = value == "0"
+        isError = value == "0",
+        textStyle = MaterialTheme.typography.bodySmall
     )
 }
 
@@ -757,7 +802,7 @@ fun SetTextField(
 fun Preview_CurrentWorkoutScreenContent() {
     FitnessappTheme {
         val sampleSetGroups = listOf(
-            com.example.fitnessapp.data.SetGroup(
+            SetGroup(
                 setGroupId = 1,
                 workoutId = 1,
                 exerciseId = 101,
@@ -765,13 +810,13 @@ fun Preview_CurrentWorkoutScreenContent() {
                 weightUnit = WeightUnit.KG,
                 exerciseName = "Bench Press",
                 entries = listOf(
-                    com.example.fitnessapp.data.SetEntry(weight = "50", reps = "8", completed = true),
-                    com.example.fitnessapp.data.SetEntry(weight = "55", reps = "6")
+                    SetEntry(weight = "50", reps = "8", completed = true),
+                    SetEntry(weight = "55", reps = "6")
                 )
             )
         )
         val sampleUiState = CurrentWorkoutUIState(
-            currentWorkout = com.example.fitnessapp.data.Workout(
+            currentWorkout = Workout(
                 id = 1,
                 locationId = 1,
                 startTime = 0L,
