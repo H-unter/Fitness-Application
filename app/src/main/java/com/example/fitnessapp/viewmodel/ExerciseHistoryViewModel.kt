@@ -60,7 +60,11 @@ class ExerciseHistoryViewModel(
     private val volumeSeries: StateFlow<List<Double>> = setGroups
         .map { groups ->
             groups.map { sg ->
-                sg.entries.sumOf { it.weight.toDouble() * it.reps.toDouble() }
+                sg.entries.sumOf { entry ->
+                    val weight = entry.weight.toDoubleOrNull() ?: 0.0
+                    val reps = entry.reps.toDoubleOrNull() ?: 0.0
+                    weight * reps
+                }
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -70,8 +74,8 @@ class ExerciseHistoryViewModel(
         .map { groups ->
             groups.map { sg ->
                 sg.entries.maxOfOrNull { entry ->
-                    val w = entry.weight.toDouble()
-                    val r = entry.reps.toDouble()
+                    val w = entry.weight.toDoubleOrNull() ?: 0.0
+                    val r = entry.reps.toDoubleOrNull() ?: 0.0
                     w * (1 + r / 30.0)
                 } ?: 0.0
             }

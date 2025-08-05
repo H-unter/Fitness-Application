@@ -11,10 +11,12 @@ import androidx.compose.material3.*
 import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.example.fitnessapp.R
 import com.example.fitnessapp.data.Exercise
 import com.example.fitnessapp.viewmodel.CurrentWorkoutViewModel
 import com.example.fitnessapp.viewmodel.ExerciseListSelectionViewModel
@@ -87,10 +89,10 @@ fun ExerciseListSelectionContent(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Select Exercise") },
+                title = { Text(stringResource(R.string.select_exercise)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -106,13 +108,13 @@ fun ExerciseListSelectionContent(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = onSearchQueryChange,
-                label = { Text("Search Exercises") },
+                label = { Text(stringResource(R.string.search_exercises)) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
                 singleLine = true,
                 leadingIcon = {
-                    Icon(Icons.Default.Search, contentDescription = "Search")
+                    Icon(Icons.Default.Search, contentDescription = stringResource(R.string.search))
                 }
             )
             Button(
@@ -121,9 +123,9 @@ fun ExerciseListSelectionContent(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Exercise")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_exercise))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Add New Exercise")
+                Text(stringResource(R.string.add_new_exercise))
             }
             LazyColumn(modifier = Modifier.padding(16.dp)) {
                 items(exercises.size) { index ->
@@ -141,12 +143,12 @@ fun ExerciseListSelectionContent(
             if (showAddDialog) {
                 AlertDialog(
                     onDismissRequest = onDismissAddDialog,
-                    title = { Text("Add New Exercise") },
+                    title = { Text(stringResource(R.string.add_new_exercise)) },
                     text = {
                         OutlinedTextField(
                             value = newExerciseName,
                             onValueChange = onNewExerciseNameChange,
-                            label = { Text("Exercise Name") },
+                            label = { Text(stringResource(R.string.exercise_name)) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -155,12 +157,12 @@ fun ExerciseListSelectionContent(
                         Button(
                             onClick = onAddExercise
                         ) {
-                            Text("Add")
+                            Text(stringResource(R.string.add))
                         }
                     },
                     dismissButton = {
                         TextButton(onClick = onDismissAddDialog) {
-                            Text("Cancel")
+                            Text(stringResource(R.string.cancel))
                         }
                     }
                 )

@@ -70,6 +70,8 @@ import com.example.fitnessapp.ui.theme.FitnessappTheme
 import com.example.fitnessapp.viewmodel.CurrentWorkoutViewModel
 import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
+import androidx.compose.ui.res.stringResource
+import com.example.fitnessapp.R
 
 @Composable
 fun CurrentWorkoutScreen(
@@ -128,7 +130,7 @@ fun EmptyWorkoutScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text="Empty Workout",
+                        text = stringResource(R.string.empty_workout_title),
                         style = MaterialTheme.typography.headlineSmall)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -148,9 +150,9 @@ fun EmptyWorkoutScreen(
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Nothing to See Here, Officer!")
+                Text(stringResource(R.string.empty_workout_message))
                 ElevatedButton(onClick = onStartWorkout, modifier = Modifier.padding(top = 16.dp)) {
-                    Text("Start New Workout")
+                    Text(stringResource(R.string.start_new_workout))
                 }
             }
         }
@@ -257,8 +259,8 @@ fun CurrentWorkout(
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 ElevatedButton(onClick = onAddExercise) {
-                    Icon(imageVector = Icons.Default.Add, contentDescription = "Add Exercise")
-                    Text("Add Exercise", modifier = Modifier.padding(start = 8.dp)) // TODO: make this a resource
+                    Icon(imageVector = Icons.Default.Add, contentDescription = stringResource(R.string.add_exercise))
+                    Text(stringResource(R.string.add_exercise), modifier = Modifier.padding(start = 8.dp))
                 }
             }
         }
@@ -323,7 +325,7 @@ fun SetGroupCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.BarChart,
-                        contentDescription = "Exercise Stats",
+                        contentDescription = stringResource(R.string.exercise_stats),
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -339,7 +341,7 @@ fun SetGroupCard(
                 ){
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Remove Exercise",
+                        contentDescription = stringResource(R.string.remove_exercise),
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -359,17 +361,17 @@ fun SetGroupCard(
                     modifier = Modifier.width(24.dp)
                 )
                 Text(
-                    text = "Weight ($selectedWeightUnit)",
+                    text = stringResource(R.string.weight_with_unit, selectedWeightUnit),
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.weight(1f)
                 )
                 Text(
-                    text = "Reps",
+                    text = stringResource(R.string.reps),
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.weight(1f)
                 )
                 Text(
-                    text = "Done",
+                    text = stringResource(R.string.done),
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.width(40.dp)
                 )
@@ -395,9 +397,9 @@ fun SetGroupCard(
                     modifier = Modifier
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.Add, contentDescription = "Add Set")
+                    Icon(imageVector = Icons.Default.Add, contentDescription = stringResource(R.string.add_set))
                     Text(
-                        text = "Add Set",
+                        text = stringResource(R.string.add_set),
                         modifier = Modifier.padding(start = 8.dp)
                     )
                 }
@@ -410,9 +412,9 @@ fun SetGroupCard(
                     modifier = Modifier
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.Close, contentDescription = "Remove Set")
+                    Icon(imageVector = Icons.Default.Close, contentDescription = stringResource(R.string.remove_set))
                     Text(
-                        text = "Remove Set",
+                        text = stringResource(R.string.remove_set),
                         modifier = Modifier.padding(start = 8.dp)
                     )
                 }
@@ -469,12 +471,12 @@ fun WorkoutTopAppBar(
     if (showAddGymDialog) {
         AlertDialog(
             onDismissRequest = { showAddGymDialog = false },
-            title = { Text("Add New Gym") },
+            title = { Text(stringResource(R.string.add_new_gym)) },
             text = {
                 OutlinedTextField(
                     value = newGymName,
                     onValueChange = { newGymName = it },
-                    label = { Text("Gym Name") },
+                    label = { Text(stringResource(R.string.gym_name)) },
                     singleLine = true
                 )
             },
@@ -488,12 +490,12 @@ fun WorkoutTopAppBar(
                         }
                     }
                 ) {
-                    Text("Add")
+                    Text(stringResource(R.string.add))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showAddGymDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -503,7 +505,7 @@ fun WorkoutTopAppBar(
     if (showFinishWorkoutDialog) {
         AlertDialog(
             onDismissRequest = { showFinishWorkoutDialog = false },
-            title = { Text("Finish Workout") },
+            title = { Text(stringResource(R.string.finish_workout)) },
             text = { Text(validationState.message) },
             confirmButton = {
                 Button(
@@ -515,12 +517,12 @@ fun WorkoutTopAppBar(
                     },
                     enabled = validationState.canFinish
                 ) {
-                    Text("Finish")
+                    Text(stringResource(R.string.finish))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showFinishWorkoutDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -534,7 +536,7 @@ fun WorkoutTopAppBar(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                 Text(
-                    text = "Current Workout",
+                    text = stringResource(R.string.current_workout),
                     style = MaterialTheme.typography.headlineSmall
                 )
                 ElapsedTimeDisplay(
@@ -543,7 +545,7 @@ fun WorkoutTopAppBar(
                 )
                 }
                 Text(
-                    text = selectedGym?.name ?: "No Gym Selected",
+                    text = selectedGym?.name ?: stringResource(R.string.no_gym_selected),
                     style = MaterialTheme.typography.bodySmall,
                     color = if (selectedGym == null) {
                         MaterialTheme.colorScheme.error
@@ -556,7 +558,7 @@ fun WorkoutTopAppBar(
         navigationIcon = {
             IconButton(onClick = { expanded = true }) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.EditLocationAlt, contentDescription = "Select Gym")
+                    Icon(Icons.Default.EditLocationAlt, contentDescription = stringResource(R.string.select_gym))
                     Icon(Icons.Default.ArrowDropDown, contentDescription = null)
                 }
             }
@@ -567,7 +569,7 @@ fun WorkoutTopAppBar(
             ) {
                 if (gyms.isEmpty()) {
                     DropdownMenuItem(
-                        text = { Text("No gyms available") },
+                        text = { Text(stringResource(R.string.no_gyms_available)) },
                         onClick = { }
                     )
                 } else {
@@ -590,7 +592,7 @@ fun WorkoutTopAppBar(
                                 contentDescription = null,
                                 modifier = Modifier.padding(end = 8.dp)
                             )
-                            Text("Add New Gym")
+                            Text(stringResource(R.string.add_new_gym))
                         }
                     },
                     onClick = {
@@ -602,7 +604,7 @@ fun WorkoutTopAppBar(
         },
         actions = {
             IconButton(onClick = { showFinishWorkoutDialog = true }) {
-                Icon(Icons.Default.Check, contentDescription = "Complete Workout")
+                Icon(Icons.Default.Check, contentDescription = stringResource(R.string.complete_workout))
             }
         },
         scrollBehavior = scrollBehavior,
@@ -627,7 +629,11 @@ fun UnitSelectorDropdown(
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val unitOptions = listOf("Kgs", "Lbs", "Units")
+    val unitOptions = listOf(
+        stringResource(R.string.unit_kgs),
+        stringResource(R.string.unit_lbs),
+        stringResource(R.string.unit_units)
+    )
 
     Box(
         modifier = modifier
@@ -643,7 +649,7 @@ fun UnitSelectorDropdown(
             )
             Icon(
                 imageVector = Icons.Default.ArrowDropDown,
-                contentDescription = "Select Unit",
+                contentDescription = stringResource(R.string.select_unit),
                 modifier = Modifier.size(12.dp)
             )
         }
@@ -718,7 +724,7 @@ fun SetRow(
                 Icon(
                     modifier = modifier.size(12.dp),
                     imageVector = Icons.Outlined.Scale,
-                    contentDescription = "weight"
+                    contentDescription = stringResource(R.string.weight)
                 )
             },
             weightUnit = weightUnits
@@ -735,7 +741,7 @@ fun SetRow(
                 Icon(
                     modifier = modifier.size(12.dp),
                     imageVector = Icons.Outlined.Repeat,
-                    contentDescription = "reps"
+                    contentDescription = stringResource(R.string.reps)
                 )
             },
             modifier = Modifier.weight(1f)

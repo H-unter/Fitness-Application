@@ -34,12 +34,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.example.fitnessapp.R
 import com.example.fitnessapp.ui.theme.FitnessappTheme
 import com.example.fitnessapp.viewmodel.ExerciseHistoryViewModel
 import com.example.fitnessapp.viewmodel.SetGroupDisplayData
@@ -153,7 +155,7 @@ fun ExerciseHistoryTopAppBar(
         modifier = modifier,
         title = {
             Text(
-                text = "History: $exerciseName",
+                text = stringResource(R.string.history_title, exerciseName),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -162,7 +164,7 @@ fun ExerciseHistoryTopAppBar(
             IconButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back"
+                    contentDescription = stringResource(R.string.back)
                 )
             }
         },
@@ -320,7 +322,7 @@ fun HistoricalExerciseCard(
                 .padding(12.dp)
         ) {
             Text(
-                text = "Workout – $date",
+                text = stringResource(R.string.workout_on_date, date),
                 style = MaterialTheme.typography.titleMedium
             )
             Spacer(modifier = Modifier.height(4.dp))
@@ -340,7 +342,7 @@ fun HistoricalExerciseCard(
 
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Total Volume = $totalVolume",
+                text = stringResource(R.string.total_volume, totalVolume),
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
             )
         }
@@ -364,11 +366,11 @@ fun HistoricalSetRow(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
-            text  = "$setNumber: $reps reps × ${weight.toInt()}kg",
+            text  = stringResource(R.string.set_row_label, setNumber, reps, weight.toInt()),
             style = MaterialTheme.typography.bodyMedium
         )
         Text(
-            text  = "Vol $volume · 1RM ${"%.1f".format(oneRepMax)}",
+            text  = stringResource(R.string.set_row_stats, volume, oneRepMax),
             style = if (isMax)
                 MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
             else

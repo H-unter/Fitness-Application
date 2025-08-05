@@ -21,9 +21,12 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import com.example.fitnessapp.R
+import androidx.core.content.edit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,10 +38,10 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -50,8 +53,6 @@ fun SettingsScreen(
             )
         },
         bottomBar = { BottomNavigationBar(navController = navController) },
-
-
     ) { padding ->
         Column(
             modifier = Modifier
@@ -64,7 +65,7 @@ fun SettingsScreen(
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Dark Mode", modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.dark_mode), modifier = Modifier.weight(1f))
                 Switch(
                     checked = isDarkMode,
                     onCheckedChange = { onDarkModeToggle(it) }
@@ -82,7 +83,7 @@ class ThemePreference(context: Context) {
 
     var isDarkMode: Boolean
         get() = preferences.getBoolean("dark_mode", false)
-        set(value) = preferences.edit().putBoolean("dark_mode", value).apply()
+        set(value) = preferences.edit { putBoolean("dark_mode", value) }
 }
 
 @Preview

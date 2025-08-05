@@ -32,6 +32,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.example.fitnessapp.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -108,7 +110,7 @@ fun WorkoutHistoryScreenContent(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Workout History")
+                        Text(stringResource(R.string.workout_history_title))
                     }
                 },
                 navigationIcon = {
@@ -122,7 +124,7 @@ fun WorkoutHistoryScreenContent(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CloudDone,
-                                contentDescription = "View Health Connect Data",
+                                contentDescription = stringResource(R.string.view_health_connect_data),
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
@@ -133,7 +135,7 @@ fun WorkoutHistoryScreenContent(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CloudOff,
-                                contentDescription = "Request Health Connect permissions",
+                                contentDescription = stringResource(R.string.request_health_connect_permissions),
                                 tint = MaterialTheme.colorScheme.error
                             )
                         }
@@ -166,7 +168,7 @@ fun WorkoutHistoryScreenContent(
                     contentAlignment = androidx.compose.ui.Alignment.Center
                 ) {
                     Text(
-                        text = "No workouts to show, get lifting!",
+                        text = stringResource(R.string.no_workouts_to_show),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -228,7 +230,7 @@ private fun WorkoutHistoryItem(
                 )
 
                 Text(
-                    text = "Duration: ${workout.duration}",
+                    text = stringResource(R.string.duration_with_value, workout.duration),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium
                 )
@@ -282,11 +284,11 @@ private fun ExerciseDetailCard(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Set ${index + 1}",
+                        text = stringResource(R.string.set_number, index + 1),
                         style = MaterialTheme.typography.bodySmall
                     )
                     Text(
-                        text = "${weight.toInt()}kg × $reps reps",
+                        text = stringResource(R.string.weight_reps, weight.toInt(), reps),
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Medium
                     )
@@ -302,7 +304,7 @@ private fun ExerciseDetailCard(
 
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Total volume: $totalVolume kg",
+                text = stringResource(R.string.total_volume_kg, totalVolume),
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.primary
@@ -320,7 +322,7 @@ fun HealthConnectDataDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Health Connect Data",
+                text = stringResource(R.string.health_connect_data),
                 style = MaterialTheme.typography.headlineSmall
             )
         },
@@ -331,7 +333,7 @@ fun HealthConnectDataDialog(
                     .padding(vertical = 8.dp)
             ) {
                 Text(
-                    text = "Found ${sessions.size} exercise sessions in Health Connect",
+                    text = stringResource(R.string.found_sessions, sessions.size),
                     style = MaterialTheme.typography.bodyMedium
                 )
 
@@ -339,7 +341,7 @@ fun HealthConnectDataDialog(
 
                 if (sessions.isEmpty()) {
                     Text(
-                        text = "No exercise sessions found in Health Connect",
+                        text = stringResource(R.string.no_sessions_found),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 } else {
@@ -364,7 +366,7 @@ fun HealthConnectDataDialog(
             androidx.compose.material3.Button(
                 onClick = onDismiss
             ) {
-                Text("Close")
+                Text(stringResource(R.string.close))
             }
         }
     )
@@ -385,7 +387,7 @@ fun HealthConnectSessionItem(session: HealthConnectSession) {
             .padding(vertical = 4.dp)
     ) {
         Text(
-            text = session.title ?: "Untitled Workout",
+            text = session.title ?: stringResource(R.string.untitled_workout),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
@@ -395,34 +397,34 @@ fun HealthConnectSessionItem(session: HealthConnectSession) {
 
         // Display exercise type
         val exerciseTypeStr = when (session.exerciseType) {
-            ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING -> "Strength Training"
-            else -> "Other (${session.exerciseType})"
+            androidx.health.connect.client.records.ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING -> stringResource(R.string.strength_training)
+            else -> stringResource(R.string.other_exercise_type, session.exerciseType)
         }
 
         Text(
-            text = "Type: $exerciseTypeStr",
+            text = stringResource(R.string.type_with_value, exerciseTypeStr),
             style = MaterialTheme.typography.bodyMedium
         )
 
         Text(
-            text = "Duration: ${if (durationHours > 0) "${durationHours}h " else ""}${durationMinutes % 60}m",
+            text = stringResource(R.string.duration_colon, if (durationHours > 0) "${durationHours}h " else "", durationMinutes % 60),
             style = MaterialTheme.typography.bodyMedium
         )
 
         Text(
-            text = "Start: $startTimeFormatted",
+            text = stringResource(R.string.start_time, startTimeFormatted),
             style = MaterialTheme.typography.bodySmall
         )
 
         Text(
-            text = "End: $endTimeFormatted",
+            text = stringResource(R.string.end_time, endTimeFormatted),
             style = MaterialTheme.typography.bodySmall
         )
 
         if (session.segmentCount > 0) {
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Segments: ${session.segmentCount}, Total Reps: ${session.totalReps}",
+                text = stringResource(R.string.segments_total_reps, session.segmentCount, session.totalReps),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium
             )
@@ -430,7 +432,7 @@ fun HealthConnectSessionItem(session: HealthConnectSession) {
 
         session.clientRecordId?.let { clientId ->
             Text(
-                text = "ID: $clientId",
+                text = stringResource(R.string.id_with_value, clientId),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.outline
             )
