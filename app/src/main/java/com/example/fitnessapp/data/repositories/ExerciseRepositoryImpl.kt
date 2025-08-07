@@ -57,4 +57,8 @@ class ExerciseRepositoryImpl(
     override suspend fun getExerciseNameById(exerciseId: Long): String {
         return exerciseDao.getExerciseById(exerciseId.toInt())?.name ?: ""
     }
+
+    override suspend fun updateExerciseName(exerciseId: Long, newName: String) {
+        exerciseDao.updateExerciseName(exerciseId, newName.trim())
+    }
 }

@@ -6,10 +6,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -37,6 +39,12 @@ fun ExerciseListSelectionScreen(
         var searchQuery by remember { mutableStateOf("") }
         var showAddDialog by remember { mutableStateOf(false) }
         var newExerciseName by remember { mutableStateOf("") }
+
+        // Edit dialog state
+        var showEditDialog by remember { mutableStateOf(false) }
+        var editExerciseName by remember { mutableStateOf("") }
+        var editExerciseId by remember { mutableStateOf<Long?>(null) }
+        var editErrorResId by remember { mutableStateOf<Int?>(null) }
 
         val filteredExercises = if (searchQuery.isBlank()) {
             exercises
@@ -66,7 +74,38 @@ fun ExerciseListSelectionScreen(
                     ?.set("selectedExerciseId", exerciseId)
                 navController.popBackStack()
             },
-            onBack = { navController.popBackStack() }
+            onBack = { navController.popBackStack() },
+            onShowEditDialog = { id, name ->
+                editExerciseId = id
+                editExerciseName = name
+                editErrorResId = null
+                showEditDialog = true
+            },
+            showEditDialog = showEditDialog,
+            editExerciseName = editExerciseName,
+            onEditExerciseNameChange = { editExerciseName = it },
+            onEditExercise = {
+                val id = editExerciseId
+                if (id != null && editExerciseName.isNotBlank()) {
+                    // Check for duplicate name
+                    if (exercises.any { it.name.equals(editExerciseName, ignoreCase = true) }) {
+                        editErrorResId = R.string.name_exists_error
+                    } else {
+                        exerciseListViewModel.updateExerciseName(id, editExerciseName)
+                        showEditDialog = false
+                        editExerciseId = null
+                        editExerciseName = ""
+                        editErrorResId = null
+                    }
+                }
+            },
+            onDismissEditDialog = {
+                showEditDialog = false
+                editExerciseId = null
+                editExerciseName = ""
+                editErrorResId = null
+            },
+            editErrorResId = editErrorResId
         )
     }
 }
@@ -84,7 +123,15 @@ fun ExerciseListSelectionContent(
     onNewExerciseNameChange: (String) -> Unit = {},
     onAddExercise: () -> Unit = {},
     onExerciseSelected: (Long) -> Unit = {},
-    onBack: () -> Unit = {}
+    onBack: () -> Unit = {},
+    // Edit dialog props
+    onShowEditDialog: (Long, String) -> Unit = { _, _ -> },
+    showEditDialog: Boolean = false,
+    editExerciseName: String = "",
+    onEditExerciseNameChange: (String) -> Unit = {},
+    onEditExercise: () -> Unit = {},
+    onDismissEditDialog: () -> Unit = {},
+    editErrorResId: Int? = null
 ) {
     Scaffold(
         topBar = {
@@ -130,13 +177,25 @@ fun ExerciseListSelectionContent(
             LazyColumn(modifier = Modifier.padding(16.dp)) {
                 items(exercises.size) { index ->
                     val exercise = exercises[index]
-                    Text(
-                        text = exercise.name,
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onExerciseSelected(exercise.exerciseId) }
-                            .padding(vertical = 12.dp)
-                    )
+                            .padding(vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = exercise.name,
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { onExerciseSelected(exercise.exerciseId) }
+                        )
+                        IconButton(
+                            onClick = { onShowEditDialog(exercise.exerciseId, exercise.name) }
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit))
+                        }
+                    }
                     HorizontalDivider()
                 }
             }
@@ -162,6 +221,48 @@ fun ExerciseListSelectionContent(
                     },
                     dismissButton = {
                         TextButton(onClick = onDismissAddDialog) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                    }
+                )
+            }
+            if (showEditDialog) {
+                AlertDialog(
+                    onDismissRequest = onDismissEditDialog,
+                    title = { Text(stringResource(R.string.edit_exercise)) },
+                    text = {
+                        Column {
+                            OutlinedTextField(
+                                value = editExerciseName,
+                                onValueChange = onEditExerciseNameChange,
+                                label = { Text(stringResource(R.string.exercise_name)) },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Text(
+                                text = stringResource(R.string.edit_exercise_warning),
+                                color = colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+                            if (editErrorResId != null) {
+                                Text(
+                                    text = stringResource(editErrorResId),
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = onEditExercise
+                        ) {
+                            Text(stringResource(R.string.edit))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = onDismissEditDialog) {
                             Text(stringResource(R.string.cancel))
                         }
                     }

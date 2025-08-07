@@ -20,4 +20,6 @@ interface ExerciseDao {
     @Query("SELECT * FROM Exercise WHERE name = :name")
     suspend fun getExerciseByName(name: String): ExerciseEntity
 
+    @Query("UPDATE Exercise SET name = :newName WHERE exerciseId = :exerciseId")
+    suspend fun updateExerciseName(exerciseId: Long, newName: String)
 }

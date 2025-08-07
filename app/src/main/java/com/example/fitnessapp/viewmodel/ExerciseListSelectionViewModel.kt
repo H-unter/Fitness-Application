@@ -32,4 +32,9 @@ class ExerciseListSelectionViewModel(
         )
         exerciseRepository.insertExercise(name)
     }
+
+    // update an exercise name
+    fun updateExerciseName(exerciseId: Long, newName: String) = viewModelScope.launch {
+        exerciseRepository.updateExerciseName(exerciseId, newName)
+    }
 }

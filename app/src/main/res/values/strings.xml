@@ -5,6 +5,7 @@
     <string name="add">Add</string>
     <string name="cancel">Cancel</string>
     <string name="back">Back</string>
+    <string name="edit">Edit</string>
 
     <!-- CurrentWorkoutScreen -->
     <string name="empty_workout_title">Empty Workout</string>
@@ -88,4 +89,7 @@
     <string name="unlink_health_connect">Unlink from Health Connect</string>
     <string name="app_info">App Info</string>
     <string name="revoking_permissions">Revoking permissions...</string>
+    <string name="edit_exercise">Edit Exercise</string>
+    <string name="name_exists_error">Name already exists</string>
+    <string name="edit_exercise_warning">This will change any historical instance of this exercise as well.</string>
 </resources>
