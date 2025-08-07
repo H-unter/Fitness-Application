@@ -1,17 +1,14 @@
 package com.example.fitnessapp.navigation
 
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import org.koin.androidx.compose.koinViewModel
 import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.*
 import androidx.navigation.navArgument
-import com.example.fitnessapp.views.CurrentWorkoutScreen
-import com.example.fitnessapp.views.ExerciseListSelectionScreen
-import com.example.fitnessapp.views.ExerciseHistoryScreen
-import com.example.fitnessapp.views.WorkoutHistoryScreen
-import com.example.fitnessapp.views.SettingsScreen
-import com.example.fitnessapp.views.ThemePreference
+import com.example.fitnessapp.viewmodel.ThemePreference
+import com.example.fitnessapp.viewmodel.WorkoutHistoryViewModel
+import com.example.fitnessapp.views.*
+import android.util.Log
 
 @Composable
 fun AppNavigation(
@@ -19,6 +16,9 @@ fun AppNavigation(
     onThemeChange: (Boolean) -> Unit
 ) {
     val navController = rememberNavController()
+    var permissionsGranted by remember { mutableStateOf(false) }
+    val workoutHistoryViewModel: WorkoutHistoryViewModel = koinViewModel()
+
     NavHost(navController = navController, startDestination = Screens.CurrentWorkoutScreen.route) {
 
         composable(Screens.CurrentWorkoutScreen.route) {
@@ -33,7 +33,17 @@ fun AppNavigation(
         }
 
         composable(Screens.WorkoutHistoryScreen.route) {
-            WorkoutHistoryScreen(navController = navController)
+            WorkoutHistoryScreen(
+                navController = navController,
+                viewModel = workoutHistoryViewModel,
+                onPermissionsChecked = { granted ->
+                    if (permissionsGranted != granted) {
+                        permissionsGranted = granted
+                        Log.d("AppNavigation", "Permissions state updated to: $granted")
+                    }
+                },
+                overridePermissionsGranted = permissionsGranted
+            )
         }
 
         composable(
@@ -46,10 +56,16 @@ fun AppNavigation(
         }
 
         composable(Screens.SettingsScreen.route) {
-            SettingsScreen(
+            AppSettingsScreen(
                 isDarkMode = themePreference.isDarkMode,
                 onDarkModeToggle = onThemeChange,
-                navController = navController
+                navController = navController,
+                permissionsGranted = permissionsGranted,
+                onPermissionsRevoked = {
+                    permissionsGranted = false
+                    workoutHistoryViewModel.onPermissionsRevoked()
+                    Log.d("AppNavigation", "Permissions revoked - state updated to false")
+                }
             )
         }
     }

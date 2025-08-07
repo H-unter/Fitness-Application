@@ -34,7 +34,9 @@ class WorkoutHistoryViewModel(
 
     init {
         loadWorkoutHistory()
+        loadHealthConnectWorkoutIds()
     }
+
     private fun loadWorkoutHistory() {
         viewModelScope.launch {
             try {
@@ -70,18 +72,30 @@ class WorkoutHistoryViewModel(
         }
     }
 
-    suspend fun checkPermissionsAndRun() {
-        val granted = healthConnectManager.getGrantedPermissions()
-        if (granted.containsAll(HealthConnectManager.PERMISSIONS)) {
-            // Permissions already granted; proceed with inserting or reading data
-            syncHistoricalWorkoutsToHealthConnect()
-        } else {
-            // Will need to request permissions via launcher
-            Log.d(TAG, "Permissions missing, need to request")
+    private fun loadHealthConnectWorkoutIds() {
+        viewModelScope.launch {
+            try {
+                val availability = healthConnectManager.checkAvailability()
+                if (availability != HealthConnectAvailability.INSTALLED || !healthConnectManager.hasAllPermissions()) {
+                    return@launch
+                }
+
+                val result = healthConnectManager.readAllExerciseSessions()
+                if (result.isSuccess) {
+                    val sessions = result.getOrNull() ?: emptyList()
+                    val workoutIds = sessions.mapNotNull { it.metadata.clientRecordId }.toSet()
+
+                    _uiState.value = _uiState.value.copy(
+                        healthConnectWorkoutIds = workoutIds
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading Health Connect workout IDs", e)
+            }
         }
     }
 
-    fun checkAndRequestPermissions() {
+    fun checkPermissionsOnly() {
         viewModelScope.launch {
             try {
                 val availability = healthConnectManager.checkAvailability()
@@ -95,13 +109,16 @@ class WorkoutHistoryViewModel(
                     return@launch
                 }
 
-                checkPermissionsAndRun()
-
                 val hasPermissions = healthConnectManager.hasAllPermissions()
                 _uiState.value = _uiState.value.copy(
                     permissionsGranted = hasPermissions,
                     permissionsChecked = true
                 )
+
+                // Load Health Connect workout IDs only if permissions are granted
+                if (hasPermissions) {
+                    loadHealthConnectWorkoutIds()
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Error checking permissions", e)
                 _uiState.value = _uiState.value.copy(
@@ -212,5 +229,89 @@ class WorkoutHistoryViewModel(
         _uiState.value = _uiState.value.copy(
             showHealthConnectDialog = false
         )
+    }
+
+    fun onPermissionsRevoked() {
+        // Clear Health Connect related data when permissions are revoked
+        _uiState.value = _uiState.value.copy(
+            permissionsGranted = false,
+            permissionsChecked = true,
+            healthConnectWorkoutIds = null,
+            healthConnectSessions = null,
+            showHealthConnectDialog = false,
+            healthConnectTestResult = null
+        )
+        Log.d(TAG, "Permissions revoked - ViewModel state updated")
+    }
+
+    fun refreshPermissionsState() {
+        viewModelScope.launch {
+            try {
+                val availability = healthConnectManager.checkAvailability()
+                if (availability != HealthConnectAvailability.INSTALLED) {
+                    _uiState.value = _uiState.value.copy(
+                        permissionsGranted = false,
+                        permissionsChecked = true,
+                        healthConnectWorkoutIds = null
+                    )
+                    return@launch
+                }
+
+                val hasPermissions = healthConnectManager.hasAllPermissions()
+                _uiState.value = _uiState.value.copy(
+                    permissionsGranted = hasPermissions,
+                    permissionsChecked = true
+                )
+
+                if (!hasPermissions) {
+                    // Clear Health Connect data if permissions were revoked
+                    _uiState.value = _uiState.value.copy(
+                        healthConnectWorkoutIds = null,
+                        healthConnectSessions = null,
+                        showHealthConnectDialog = false,
+                        healthConnectTestResult = null
+                    )
+                } else {
+                    loadHealthConnectWorkoutIds()
+                }
+
+                Log.d(TAG, "Permissions state refreshed: $hasPermissions")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error refreshing permissions state", e)
+                _uiState.value = _uiState.value.copy(
+                    permissionsGranted = false,
+                    permissionsChecked = true
+                )
+            }
+        }
+    }
+
+    fun onPermissionsGranted() {
+        viewModelScope.launch {
+            try {
+                // Update permissions state immediately
+                _uiState.value = _uiState.value.copy(
+                    permissionsGranted = true,
+                    permissionsChecked = true
+                )
+
+                // Then load Health Connect data and sync workouts
+                loadHealthConnectWorkoutIds()
+                syncHistoricalWorkoutsToHealthConnect()
+
+                Log.d(TAG, "Permissions granted - UI state updated and workouts synced")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error after permissions granted", e)
+            }
+        }
+    }
+
+    fun onPermissionsDenied() {
+        _uiState.value = _uiState.value.copy(
+            permissionsGranted = false,
+            permissionsChecked = true,
+            healthConnectWorkoutIds = null
+        )
+        Log.d(TAG, "Permissions denied - UI state updated")
     }
 }

@@ -9,7 +9,8 @@ data class WorkoutHistoryUIState(
     val permissionsChecked: Boolean = false,
     val healthConnectTestResult: String? = null,
     val healthConnectSessions: List<HealthConnectSession>? = null,
-    val showHealthConnectDialog: Boolean = false
+    val showHealthConnectDialog: Boolean = false,
+    val healthConnectWorkoutIds: Set<String>? = null
 )
 
 data class WorkoutHistoryItem(

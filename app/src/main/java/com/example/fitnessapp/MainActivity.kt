@@ -6,7 +6,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.mutableStateOf
 import com.example.fitnessapp.ui.theme.FitnessappTheme
 import com.example.fitnessapp.navigation.AppNavigation
-import com.example.fitnessapp.views.ThemePreference
+import com.example.fitnessapp.viewmodel.ThemePreference
 import androidx.compose.runtime.remember
 
 class MainActivity : ComponentActivity() {

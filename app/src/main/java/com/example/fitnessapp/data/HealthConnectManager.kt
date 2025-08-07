@@ -2,6 +2,8 @@ package com.example.fitnessapp.data
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.util.Log
 import androidx.activity.result.contract.ActivityResultContract
@@ -57,11 +59,33 @@ class HealthConnectManager(
     suspend fun hasAllPermissions(): Boolean {
         return try {
             val granted = healthConnectClient.permissionController.getGrantedPermissions()
+            val hasAll = granted.containsAll(PERMISSIONS)
             Log.d(TAG, "Granted permissions: $granted")
             Log.d(TAG, "Required permissions: $PERMISSIONS")
-            granted.containsAll(PERMISSIONS)
+            Log.d(TAG, "Has all permissions: $hasAll")
+            hasAll
         } catch (e: Exception) {
             Log.e(TAG, "Error checking permissions", e)
+            false
+        }
+    }
+
+    suspend fun revokeAllPermissions(): Boolean {
+        return try {
+            Log.d(TAG, "Attempting to revoke all Health Connect permissions")
+            healthConnectClient.permissionController.revokeAllPermissions()
+            
+            // Give the system time to process
+            kotlinx.coroutines.delay(1000)
+            
+            // Check if revocation was successful
+            val stillHasPermissions = hasAllPermissions()
+            val success = !stillHasPermissions
+            
+            Log.d(TAG, "Revocation successful: $success")
+            success
+        } catch (e: Exception) {
+            Log.e(TAG, "Error revoking permissions", e)
             false
         }
     }
@@ -286,6 +310,21 @@ class HealthConnectManager(
             nextChangesToken = response.nextChangesToken
         } while (response.hasMore)
         emit(ChangesMessage.NoMoreChanges(nextChangesToken))
+    }
+
+    fun launchHealthConnectPermissionsScreen(context: Context) {
+        // Health Connect app package name
+        val intent = context.packageManager.getLaunchIntentForPackage("com.google.android.apps.healthdata")
+        if (intent != null) {
+            context.startActivity(intent)
+        } else {
+            // Fallback: open Health Connect in Play Store
+            val playStoreIntent = Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse("https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata")
+                setPackage("com.android.vending")
+            }
+            context.startActivity(playStoreIntent)
+        }
     }
 
 }

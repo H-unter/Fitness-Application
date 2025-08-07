@@ -12,12 +12,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -31,6 +37,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.example.fitnessapp.R
@@ -55,35 +64,41 @@ import java.util.Locale
 @Composable
 fun WorkoutHistoryScreen(
     navController: NavHostController,
-    viewModel: WorkoutHistoryViewModel = koinViewModel()
+    viewModel: WorkoutHistoryViewModel = koinViewModel(),
+    onPermissionsChecked: (Boolean) -> Unit = {},
+    overridePermissionsGranted: Boolean? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    val effectivePermissionsGranted = overridePermissionsGranted ?: uiState.permissionsGranted
 
     val requestPermissions = rememberLauncherForActivityResult(
         viewModel.requestPermissionActivityContract
     ) { granted ->
         if (granted.containsAll(HealthConnectManager.PERMISSIONS)) {
             Log.d("WorkoutHistory", "Permissions successfully granted")
-            viewModel.checkAndRequestPermissions()
+            viewModel.onPermissionsGranted()
         } else {
             Log.d("WorkoutHistory", "Lack of required permissions")
+            viewModel.onPermissionsDenied()
         }
+    }
+
+    LaunchedEffect(uiState.permissionsGranted) {
+        Log.d("WorkoutHistory", "Local permissions state changed to: ${uiState.permissionsGranted}")
+        onPermissionsChecked(uiState.permissionsGranted)
+    }
+
+    LaunchedEffect(navController.currentBackStackEntry) {
+        viewModel.refreshPermissionsState()
     }
 
     LaunchedEffect(Unit) {
-        viewModel.checkAndRequestPermissions()
-    }
-
-    // If permissions not granted, request them
-    if (uiState.permissionsChecked && !uiState.permissionsGranted) {
-        LaunchedEffect(Unit) {
-            Log.d("WorkoutHistory", "Launching permission request...")
-            requestPermissions.launch(HealthConnectManager.PERMISSIONS)
-        }
+        viewModel.checkPermissionsOnly()
     }
 
     WorkoutHistoryScreenContent(
-        uiState = uiState,
+        uiState = uiState.copy(permissionsGranted = effectivePermissionsGranted),
         navController = navController,
         onRequestPermissions = {
             requestPermissions.launch(HealthConnectManager.PERMISSIONS)
@@ -101,10 +116,12 @@ fun WorkoutHistoryScreenContent(
     uiState: WorkoutHistoryUIState,
     navController: NavHostController,
     onRequestPermissions: () -> Unit = {},
-    onViewHealthConnectData: () -> Unit = {}, // Added parameter
+    onViewHealthConnectData: () -> Unit = {},
     modifier: Modifier = Modifier,
-    viewModel: WorkoutHistoryViewModel? = null // Make ViewModel optional
+    viewModel: WorkoutHistoryViewModel? = null
 ) {
+    var showHealthConnectStatus by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -114,31 +131,26 @@ fun WorkoutHistoryScreenContent(
                     }
                 },
                 navigationIcon = {
-                    if (uiState.permissionsGranted) {
-                        IconButton(
-                            onClick = {
-                                // Use the passed function instead of directly calling ViewModel
-                                onViewHealthConnectData()
-                            },
-                            enabled = true
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CloudDone,
-                                contentDescription = stringResource(R.string.view_health_connect_data),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
+                    // Button to manually request permissions and sync
+                    IconButton(
+                        onClick = {
+                            if (uiState.permissionsGranted) {
+                                // If already granted, sync workouts
+                                viewModel?.syncHistoricalWorkoutsToHealthConnect()
+                            } else {
+                                // If not granted, request permissions
+                                onRequestPermissions()
+                            }
                         }
-                    } else {
-                        IconButton(
-                            onClick = { onRequestPermissions() },
-                            enabled = true
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CloudOff,
-                                contentDescription = stringResource(R.string.request_health_connect_permissions),
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                        }
+                    ) {
+                        Icon(
+                            imageVector = if (uiState.permissionsGranted) Icons.Default.CloudSync else Icons.Outlined.CloudOff,
+                            contentDescription = if (uiState.permissionsGranted)
+                                stringResource(R.string.sync_to_health_connect)
+                            else
+                                stringResource(R.string.request_health_connect_permissions),
+                            tint = if (uiState.permissionsGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -179,7 +191,10 @@ fun WorkoutHistoryScreenContent(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     items(uiState.workouts) { workout ->
-                        WorkoutHistoryItem(workout = workout)
+                        WorkoutHistoryItem(
+                            workout = workout,
+                            isInHealthConnect = uiState.healthConnectWorkoutIds?.contains(workout.id.toString()) == true
+                        )
                     }
                 }
             }
@@ -189,7 +204,9 @@ fun WorkoutHistoryScreenContent(
 
 @Composable
 private fun WorkoutHistoryItem(
-    workout: WorkoutHistoryItem) {
+    workout: WorkoutHistoryItem,
+    isInHealthConnect: Boolean = false
+) {
     Surface(
         modifier = Modifier
             .fillMaxWidth(),
@@ -201,20 +218,39 @@ private fun WorkoutHistoryItem(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Start
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                workout.gymName?.let {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.Start
+                ) {
+                    workout.gymName?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                    }
+
                     Text(
-                        text = it,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(end = 8.dp)
+                        text = workout.date,
+                        style = MaterialTheme.typography.titleMedium
                     )
                 }
 
-                Text(
-                    text = workout.date,
-                    style = MaterialTheme.typography.titleMedium
+                // Health Connect sync status icon - use CloudDone/CloudOff
+                Icon(
+                    imageVector = if (isInHealthConnect) Icons.Default.CloudDone else Icons.Default.CloudOff,
+                    contentDescription = if (isInHealthConnect)
+                        stringResource(R.string.synced_to_health_connect)
+                    else
+                        stringResource(R.string.not_synced_to_health_connect),
+                    tint = if (isInHealthConnect)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.size(20.dp)
                 )
             }
 

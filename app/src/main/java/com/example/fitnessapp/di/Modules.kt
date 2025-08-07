@@ -18,6 +18,7 @@ import com.example.fitnessapp.viewmodel.CurrentWorkoutViewModel
 import com.example.fitnessapp.viewmodel.ExerciseHistoryViewModel
 import com.example.fitnessapp.viewmodel.ExerciseListSelectionViewModel
 import com.example.fitnessapp.viewmodel.WorkoutHistoryViewModel
+import com.example.fitnessapp.viewmodel.AppSettingsViewModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -86,6 +87,5 @@ val appModule = module {
     viewModel { CurrentWorkoutViewModel(workoutRepository = get(), gymRepository = get(), exerciseRepository = get()) }
     viewModel { WorkoutHistoryViewModel(workoutDao = get(), healthConnectManager = get()) }
     viewModel { ExerciseHistoryViewModel(exerciseRepository = get(), savedStateHandle = get()) }
+    viewModel { AppSettingsViewModel(healthConnectManager = get()) }
 }
-
-
