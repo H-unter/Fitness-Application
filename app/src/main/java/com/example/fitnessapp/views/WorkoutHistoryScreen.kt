@@ -193,7 +193,7 @@ fun WorkoutHistoryScreenContent(
                     items(uiState.workouts) { workout ->
                         WorkoutHistoryItem(
                             workout = workout,
-                            isInHealthConnect = uiState.healthConnectWorkoutIds?.contains(workout.id.toString()) == true
+                            isInHealthConnect = workout.isAndroidHealthConnectSynced
                         )
                     }
                 }

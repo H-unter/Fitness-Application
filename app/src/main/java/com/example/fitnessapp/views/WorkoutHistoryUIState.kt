@@ -21,7 +21,8 @@ data class WorkoutHistoryItem(
     val setGroups: List<SetGroup>,
     val gymName: String?,
     val rawStartTimeMs: Long,
-    val rawEndTimeMs: Long
+    val rawEndTimeMs: Long,
+    val isAndroidHealthConnectSynced: Boolean = false
 )
 
 data class HealthConnectSession(

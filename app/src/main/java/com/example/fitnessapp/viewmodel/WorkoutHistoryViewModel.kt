@@ -41,6 +41,7 @@ class WorkoutHistoryViewModel(
         viewModelScope.launch {
             try {
                 val workouts = workoutDao.getWorkouts().first()
+                    .filter { !it.isInProgress }
 
                 val historyItems = workouts.map { workout ->
                     val workoutWithGroups = workoutDao.getWorkoutWithSetGroupsAndEntries(workout.workoutId).first()
@@ -54,14 +55,15 @@ class WorkoutHistoryViewModel(
 
                     // Create the WorkoutHistoryItem
                     WorkoutHistoryItem(
-                        id = workout.workoutId.toLong(), // Ensure ID is Long
+                        id = workout.workoutId.toLong(),
                         date = date,
                         startTime = startTime,
                         duration = calculateDuration(workout.startTime, workout.endTime),
                         setGroups = setGroups,
                         gymName = workoutWithGroups.gym?.name,
                         rawStartTimeMs = workout.startTime,
-                        rawEndTimeMs = workout.endTime
+                        rawEndTimeMs = workout.endTime,
+                        isAndroidHealthConnectSynced = workout.isAndroidHealthConnectSynced
                     )
                 }
 
@@ -149,8 +151,6 @@ class WorkoutHistoryViewModel(
         }
     }
 
-
-    fun getPermissionLauncher() = healthConnectManager.getPermissionLauncher()
 
     private fun calculateDuration(start: Long, end: Long): String {
         val durationSeconds = (end - start) / 1000

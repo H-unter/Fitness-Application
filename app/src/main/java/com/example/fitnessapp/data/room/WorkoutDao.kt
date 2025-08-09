@@ -51,4 +51,7 @@ interface WorkoutDao{
     // Delete a workout by its ID
     @Query("DELETE FROM Workout WHERE workoutId = :workoutId")
     suspend fun deleteWorkoutById(workoutId: Int)
+
+    @Query("UPDATE Workout SET isAndroidHealthConnectSynced = :synced WHERE workoutId = :workoutId")
+    suspend fun updateHealthConnectSynced(workoutId: Int, synced: Boolean)
 }
