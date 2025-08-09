@@ -47,4 +47,8 @@ interface WorkoutDao{
     fun getWorkoutEntityBySetGroupId(
         setGroupId: Long
     ): Flow<WorkoutEntity>
+
+    // Delete a workout by its ID
+    @Query("DELETE FROM Workout WHERE workoutId = :workoutId")
+    suspend fun deleteWorkoutById(workoutId: Int)
 }

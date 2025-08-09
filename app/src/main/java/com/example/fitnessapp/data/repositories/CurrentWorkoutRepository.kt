@@ -27,4 +27,7 @@ interface CurrentWorkoutRepository {
     suspend fun updateSetReps(exerciseIndex: Int, setIndex: Int, reps: String)
 
     suspend fun updateSetCompletion(exerciseIndex: Int, setIndex: Int, completed: Boolean)
+
+
+    suspend fun cancelCurrentWorkout()
 }

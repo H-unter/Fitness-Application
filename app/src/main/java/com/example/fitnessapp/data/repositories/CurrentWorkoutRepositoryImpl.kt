@@ -191,4 +191,13 @@ class CurrentWorkoutRepositoryImpl(
             setEntryDao.updateSetEntry(targetSetEntry.copy(completed = completed))
         }
     }
+
+    override suspend fun cancelCurrentWorkout() {
+        withContext(dispatcher) {
+            val workout = _currentWorkout.value ?: return@withContext
+            setGroupDao.deleteSetGroupsByWorkoutId(workout.workoutId)
+            workoutDao.deleteWorkoutById(workout.workoutId)
+            _currentWorkout.value = null
+        }
+    }
 }

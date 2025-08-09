@@ -71,6 +71,7 @@ import com.example.fitnessapp.viewmodel.CurrentWorkoutViewModel
 import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import com.example.fitnessapp.R
 
 @Composable
@@ -111,6 +112,7 @@ fun CurrentWorkoutScreen(
         onRemoveExercise = viewModel::removeExercise,
         onNavigateToStats = { id -> navController.navigate(Screens.ExerciseStatsScreen.createRoute(id)) },
         onCompleteWorkout = viewModel::finishCurrentWorkout,
+        onCancelWorkout = viewModel::cancelCurrentWorkout,
         onGymSelected = viewModel::selectGym,
         onCreateGym = viewModel::createNewGym,
         onToggleSetCompletion = viewModel::toggleSetCompletion,
@@ -171,6 +173,7 @@ fun CurrentWorkoutScreenContent(
     onRemoveExercise: (Int) -> Unit,
     onNavigateToStats: (Long) -> Unit,
     onCompleteWorkout: () -> Unit,
+    onCancelWorkout: () -> Unit,
     onGymSelected: (Int) -> Unit,
     onCreateGym: (String) -> Unit,
     onToggleSetCompletion: (Int, Int, Boolean) -> Unit,
@@ -185,6 +188,7 @@ fun CurrentWorkoutScreenContent(
                 onGymSelected = onGymSelected,
                 onCreateGym = onCreateGym,
                 onCompleteWorkout = onCompleteWorkout,
+                onCancelWorkout = onCancelWorkout,
                 validationState = uiState.validationState
             )
         },
@@ -458,11 +462,13 @@ fun WorkoutTopAppBar(
     onGymSelected: (Int) -> Unit = {},
     onCreateGym: (String) -> Unit = {},
     onCompleteWorkout: () -> Unit = {},
+    onCancelWorkout: (() -> Unit)? = null,
     validationState: WorkoutValidationState = WorkoutValidationState.Valid
 ) {
     var expanded by remember { mutableStateOf(false) }
     var showAddGymDialog by remember { mutableStateOf(false) }
     var showFinishWorkoutDialog by remember { mutableStateOf(false) }
+    var showCancelWorkoutDialog by remember { mutableStateOf(false) }
     var newGymName by remember { mutableStateOf("") }
 
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
@@ -523,6 +529,29 @@ fun WorkoutTopAppBar(
             dismissButton = {
                 TextButton(onClick = { showFinishWorkoutDialog = false }) {
                     Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    if (showCancelWorkoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showCancelWorkoutDialog = false },
+            title = { Text(stringResource(R.string.cancel_workout)) },
+            text = { Text(stringResource(R.string.cancel_workout_warning)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onCancelWorkout?.invoke()
+                        showCancelWorkoutDialog = false
+                    }
+                ) {
+                    Text(stringResource(R.string.cancel_workout))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCancelWorkoutDialog = false }) {
+                    Text(stringResource(R.string.keep_workout))
                 }
             }
         )
@@ -605,6 +634,9 @@ fun WorkoutTopAppBar(
         actions = {
             IconButton(onClick = { showFinishWorkoutDialog = true }) {
                 Icon(Icons.Default.Check, contentDescription = stringResource(R.string.complete_workout))
+            }
+            IconButton(onClick = { showCancelWorkoutDialog = true }) {
+                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel_workout))
             }
         },
         scrollBehavior = scrollBehavior,
@@ -785,7 +817,7 @@ fun SetTextField(
                     text = label,
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         } else null,
@@ -855,7 +887,9 @@ fun Preview_CurrentWorkoutScreenContent() {
             onCompleteWorkout = {},
             onGymSelected = {},
             onCreateGym = {},
-            onToggleSetCompletion = { _, _, _ -> }
+            onToggleSetCompletion = { _, _, _ -> },
+            onCancelWorkout = {},
+            modifier = Modifier
         )
     }
 }

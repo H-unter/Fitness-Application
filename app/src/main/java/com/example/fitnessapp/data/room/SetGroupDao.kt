@@ -45,4 +45,8 @@ interface SetGroupDao {
   """)
     fun getWorkoutStartTimeForSetGroup(setGroupId: Int): Flow<Long>
 
+    // Delete all set groups for a given workout
+    @Query("DELETE FROM SetGroup WHERE workoutId = :workoutId")
+    suspend fun deleteSetGroupsByWorkoutId(workoutId: Int)
+
 }

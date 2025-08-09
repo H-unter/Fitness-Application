@@ -24,8 +24,9 @@ data class WorkoutWithSetGroupsAndEntries(
     val gym: GymEntity?
 )
 
-fun WorkoutWithSetGroupsAndEntries.toDomain(): Workout =
-    Workout(
+fun WorkoutWithSetGroupsAndEntries?.toDomain(): Workout? {
+    if (this == null) return null
+    return Workout(
         id = workout.workoutId,
         locationId = workout.gymId ?: 0,
         startTime = workout.startTime,
@@ -34,3 +35,4 @@ fun WorkoutWithSetGroupsAndEntries.toDomain(): Workout =
         isInProgress = workout.isInProgress,
         gym = gym?.toDomain()
     )
+}

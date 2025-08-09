@@ -149,6 +149,11 @@ class CurrentWorkoutViewModel(
         workoutRepository.finishCurrentWorkout(System.currentTimeMillis())
     }
 
+    // Cancel the current workout and remove all progress
+    fun cancelCurrentWorkout() = viewModelScope.launch {
+        workoutRepository.cancelCurrentWorkout()
+    }
+
     // add an exercise (setGroup) by its id
     fun addExerciseById(exerciseId: Long) = viewModelScope.launch {
         val selectedExercise = exerciseRepository.getExerciseById(exerciseId) ?: return@launch

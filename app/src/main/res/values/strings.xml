@@ -92,4 +92,9 @@
     <string name="edit_exercise">Edit Exercise</string>
     <string name="name_exists_error">Name already exists</string>
     <string name="edit_exercise_warning">This will change any historical instance of this exercise as well.</string>
+
+    <!-- CancelWorkoutDialog -->
+    <string name="cancel_workout">Cancel Workout</string>
+    <string name="cancel_workout_warning">Are you sure you want to cancel this workout? All progress will be lost and cannot be recovered.</string>
+    <string name="keep_workout">Keep Workout</string>
 </resources>
