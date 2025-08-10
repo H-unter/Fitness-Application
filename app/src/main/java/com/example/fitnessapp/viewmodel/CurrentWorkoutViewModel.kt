@@ -49,9 +49,7 @@ class CurrentWorkoutViewModel(
                 _uiState.value = _uiState.value.copy(
                     setGroups = groups,
                     exerciseUiList = groups.map { group ->
-                        group.exerciseName to group.entries.map { entry ->
-                            entry.weight to entry.reps
-                        }
+                        group.exerciseName to group.entries.map { entry -> entry.weight to entry.reps }
                     }
                 )
                 validateWorkout()
@@ -74,9 +72,10 @@ class CurrentWorkoutViewModel(
         val workout = _uiState.value.currentWorkout
         val gyms = _uiState.value.gyms
         if (workout != null && workout.gymId > 0 && gyms.isNotEmpty()) {
-            val gym = gyms.find { it.id == workout.gymId }
-            if (gym != null && _uiState.value.selectedGym?.id != gym.id) {
-                _uiState.value = _uiState.value.copy(selectedGym = gym)
+            gyms.find { it.id == workout.gymId }?.let { gym ->
+                if (_uiState.value.selectedGym?.id != gym.id) {
+                    _uiState.value = _uiState.value.copy(selectedGym = gym)
+                }
             }
         }
     }

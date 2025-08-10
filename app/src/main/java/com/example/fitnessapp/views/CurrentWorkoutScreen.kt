@@ -1,5 +1,6 @@
 package com.example.fitnessapp.views
 
+import android.annotation.SuppressLint
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -92,12 +93,9 @@ fun CurrentWorkoutScreen(
 
     // Handle coming back from ExerciseListSelectionScreen
     LaunchedEffect(navController) {
-        navController.currentBackStackEntry?.savedStateHandle?.let { handle ->
-            handle.get<Long>("selectedExerciseId")?.let { id ->
-                viewModel.addExerciseById(id)
-                // Clear the value after consuming it
-                handle.remove<Long>("selectedExerciseId")
-            }
+        navController.currentBackStackEntry?.savedStateHandle?.get<Long>("selectedExerciseId")?.let { id ->
+            viewModel.addExerciseById(id)
+            navController.currentBackStackEntry?.savedStateHandle?.remove<Long>("selectedExerciseId")
         }
     }
 
@@ -195,9 +193,8 @@ fun CurrentWorkoutScreenContent(
             )
         },
         bottomBar = { BottomNavigationBar(navController = navController) },
-        containerColor =  MaterialTheme.colorScheme.surfaceContainerLow
-    )
-    { paddingValues: PaddingValues ->
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    ) { paddingValues: PaddingValues ->
         CurrentWorkout(
             exercises = uiState.exerciseUiList,
             setGroups = uiState.setGroups,
@@ -219,15 +216,15 @@ fun CurrentWorkoutScreenContent(
 fun CurrentWorkout(
     exercises: List<Pair<String, List<Pair<String, String>>>>,
     setGroups: List<SetGroup>,
-    onExerciseWeightChange: (exerciseIndex: Int, setIndex: Int, newWeight: String) -> Unit,
-    onExerciseRepsChange: (exerciseIndex: Int, setIndex: Int, newReps: String) -> Unit,
-    onAddSetToExercise: (exerciseIndex: Int) -> Unit,
-    onRemoveSetFromExercise: (exerciseIndex: Int, setIndex: Int) -> Unit,
+    onExerciseWeightChange: (Int, Int, String) -> Unit,
+    onExerciseRepsChange: (Int, Int, String) -> Unit,
+    onAddSetToExercise: (Int) -> Unit,
+    onRemoveSetFromExercise: (Int, Int) -> Unit,
     onAddExercise: () -> Unit,
-    onRemoveExercise: (exerciseIndex: Int) -> Unit,
+    onRemoveExercise: (Int) -> Unit,
     onNavigateToStats: (Long) -> Unit,
-    onToggleSetCompletion: (exerciseIndex: Int, setIndex: Int, completed: Boolean) -> Unit,
-    onWeightUnitChange: (exerciseIndex: Int, WeightUnit) -> Unit,
+    onToggleSetCompletion: (Int, Int, Boolean) -> Unit,
+    onWeightUnitChange: (Int, WeightUnit) -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -236,26 +233,19 @@ fun CurrentWorkout(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         itemsIndexed(exercises) { exerciseIndex, (exerciseName, sets) ->
-            val exerciseId = setGroups[exerciseIndex].exerciseId.toLong()
             val setGroup = setGroups[exerciseIndex]
             SetGroupCard(
                 index = exerciseIndex,
                 name = exerciseName,
                 sets = sets,
                 setGroup = setGroup,
-                onWeightChange = { setIndex, newWeight ->
-                    onExerciseWeightChange(exerciseIndex, setIndex, newWeight)
-                },
-                onRepsChange = { setIndex, newReps ->
-                    onExerciseRepsChange(exerciseIndex, setIndex, newReps)
-                },
+                onWeightChange = { setIndex, newWeight -> onExerciseWeightChange(exerciseIndex, setIndex, newWeight) },
+                onRepsChange = { setIndex, newReps -> onExerciseRepsChange(exerciseIndex, setIndex, newReps) },
                 onAddSet = { onAddSetToExercise(exerciseIndex) },
                 onRemoveSet = { setIndex -> onRemoveSetFromExercise(exerciseIndex, setIndex) },
-                onNavigateToStats = { onNavigateToStats(exerciseId) },
+                onNavigateToStats = { onNavigateToStats(setGroup.exerciseId.toLong()) },
                 onRemoveExercise = { onRemoveExercise(exerciseIndex) },
-                onToggleCompletion = { setIndex, completed ->
-                    onToggleSetCompletion(exerciseIndex, setIndex, completed)
-                },
+                onToggleCompletion = { setIndex, completed -> onToggleSetCompletion(exerciseIndex, setIndex, completed) },
                 selectedWeightUnit = when(setGroup.weightUnit) {
                     WeightUnit.KG -> stringResource(R.string.unit_kgs)
                     WeightUnit.LB -> stringResource(R.string.unit_lbs)
@@ -326,7 +316,7 @@ fun SetGroupCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "$name",
+                    text = name,
                     style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.weight(100f)
                 )
@@ -448,6 +438,7 @@ fun SetGroupCard(
 }
 
 
+@SuppressLint("DefaultLocale")
 @Composable
 fun ElapsedTimeDisplay(startTime: Long, modifier: Modifier = Modifier) {
     var elapsedTime by remember { mutableLongStateOf(0L) }
