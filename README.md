@@ -4,8 +4,9 @@
 
 
 
-This is a fitness application made using Android Studio, and Jetpack Compose. See the full planning document [here](docs/planning_document.pdf)
+This is a fitness application made using Android Studio, and Jetpack Compose. See the full planning document [here](docs/planning_document.pdf), and the final reflection document [here](docs/reflection.pdf). A key feature of this application is its ability so sync with [Android Health Connect](https://health.google/health-connect-android/).
 
+Below is a view of the primary screen in the application
 
 ![Light Mode UI Preview](docs/light_mode_ui_preview.png)
 ![Dark Mode UI Preview](docs/dark_mode_ui_preview.png)
