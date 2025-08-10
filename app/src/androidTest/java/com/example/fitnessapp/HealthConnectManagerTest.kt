@@ -6,6 +6,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.fitnessapp.data.HealthConnectManager
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -46,4 +47,31 @@ class HealthConnectManagerTest {
         val result = managerWithPermissions.hasAllPermissions()
         assertTrue(result)
     }
+
+    @Test
+    fun checkAvailability_returnsInstalledOrNotInstalledOrNotSupported() = runTest {
+        val availability = healthConnectManager.checkAvailability()
+        assertTrue(
+            availability == com.example.fitnessapp.data.HealthConnectAvailability.INSTALLED ||
+            availability == com.example.fitnessapp.data.HealthConnectAvailability.NOT_INSTALLED ||
+            availability == com.example.fitnessapp.data.HealthConnectAvailability.NOT_SUPPORTED
+        )
+    }
+
+    @Test
+    fun getGrantedPermissions_returnsSetAndRevocationWorks() = runTest {
+        // Initially, permissions should be granted (FakeHealthConnectClient default)
+        val initialPermissions = healthConnectManager.getGrantedPermissions()
+        assertNotNull(initialPermissions)
+        assertTrue(initialPermissions is Set<*>)
+        assertTrue(initialPermissions.isNotEmpty())
+
+        // Revoke all permissions and check again
+        val revokeResult = healthConnectManager.revokeAllPermissions()
+        assertTrue(revokeResult)
+        val afterRevokePermissions = healthConnectManager.getGrantedPermissions()
+        assertTrue(afterRevokePermissions.isEmpty())
+    }
+
+
 }

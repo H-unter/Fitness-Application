@@ -35,7 +35,7 @@ class GymActivityDatabaseTest {
         database = Room.inMemoryDatabaseBuilder(
             ApplicationProvider.getApplicationContext(),
             GymActivityDatabase::class.java
-        ).allowMainThreadQueries() // Only for testing
+        ).allowMainThreadQueries()
             .build()
         workoutDao = database.workoutDao()
     }
@@ -124,7 +124,6 @@ class GymActivityDatabaseTest {
         assertEquals(1, retrievedWorkoutWithSetGroups.setGroups.size)
         val retrievedSetGroup = retrievedWorkoutWithSetGroups.setGroups[0]
 
-        // Fix: use 'group' instead of 'setGroup'
         assertEquals(setGroup.exerciseId, retrievedSetGroup.group.exerciseId)
         assertEquals(setGroup.weightUnit, retrievedSetGroup.group.weightUnit)
 
@@ -144,5 +143,119 @@ class GymActivityDatabaseTest {
         workoutDao.markFinished(workoutId, Instant.now().toEpochMilli())
         val updatedWorkout = workoutDao.getWorkoutWithSetGroupsAndEntries(workoutId).first().workout
         assertEquals(false, updatedWorkout.isInProgress)
+    }
+
+    @Test
+    fun testEntityOperations() = runBlocking {
+        // Create and insert Gym
+        val gymEntity = com.example.fitnessapp.data.room.GymEntity(gymId = 0, name = "Test Gym")
+        val gymId = database.gymDao().insertGym(gymEntity).toInt()
+        val retrievedGym = database.gymDao().getGymById(gymId)
+        assertEquals(gymEntity.name, retrievedGym?.name)
+
+        // Create and insert Workout
+        val workoutEntity = WorkoutEntity(
+            workoutId = 0,
+            gymId = gymId,
+            startTime = Instant.now().toEpochMilli(),
+            endTime = Instant.now().plusSeconds(1800).toEpochMilli(),
+            isInProgress = true
+        )
+        val workoutId = workoutDao.insertWorkout(workoutEntity).toInt()
+        val retrievedWorkout = workoutDao.getWorkout(workoutId)
+        assertEquals(workoutEntity.gymId, retrievedWorkout?.gymId)
+
+        // Create and insert SetGroup
+        val setGroupEntity = SetGroupEntity(
+            setGroupId = 0,
+            exerciseId = 1,
+            workoutId = workoutId,
+            weightUnit = WeightUnit.KG
+        )
+        val setGroupId = database.setGroupDao().insertSetGroup(setGroupEntity).toInt()
+        val retrievedSetGroup = database.setGroupDao().getSetGroup(setGroupId)
+        assertEquals(setGroupEntity.exerciseId, retrievedSetGroup?.exerciseId)
+
+        // Create and insert SetEntry
+        val setEntryEntity = SetEntryEntity(
+            setEntryId = 0,
+            setGroupId = setGroupId,
+            setIndex = 0,
+            weight = 60f,
+            reps = 8,
+            completed = true
+        )
+        database.setEntryDao().insertSetEntry(setEntryEntity)
+        val retrievedSetEntry = database.setEntryDao().getEntriesForGroup(setGroupId).firstOrNull()
+        assertEquals(setEntryEntity.weight, retrievedSetEntry?.weight)
+
+        // Update SetEntry
+        // Use the actual setEntryId from the inserted entry
+        val updatedSetEntry = retrievedSetEntry?.copy(weight = 65f)
+        if (updatedSetEntry != null) {
+            database.setEntryDao().updateSetEntry(updatedSetEntry)
+        }
+        val updatedEntry = database.setEntryDao().getEntriesForGroup(setGroupId).firstOrNull()
+        assertEquals(65f, updatedEntry?.weight)
+
+        // Delete SetEntry
+        if (updatedSetEntry != null) {
+            database.setEntryDao().deleteSetEntry(updatedSetEntry)
+        }
+        val deletedEntry = database.setEntryDao().getEntriesForGroup(setGroupId).firstOrNull()
+        assertEquals(null, deletedEntry)
+    }
+
+    @Test
+    fun testRelationshipsAndEdgeCases() = runBlocking {
+        // Insert Workout with empty SetGroups
+        val workoutEntity = WorkoutEntity(
+            workoutId = 0,
+            gymId = 1,
+            startTime = Instant.now().toEpochMilli(),
+            endTime = Instant.now().plusSeconds(1800).toEpochMilli(),
+            isInProgress = true
+        )
+        val workoutId = workoutDao.insertWorkout(workoutEntity).toInt()
+        val workoutWithGroups = workoutDao.getWorkoutWithSetGroupsAndEntries(workoutId).first()
+        assertEquals(0, workoutWithGroups.setGroups.size)
+
+        // Insert SetGroup with empty SetEntries
+        val setGroupEntity = SetGroupEntity(
+            setGroupId = 0,
+            exerciseId = 2,
+            workoutId = workoutId,
+            weightUnit = WeightUnit.LB
+        )
+        val setGroupId = database.setGroupDao().insertSetGroup(setGroupEntity).toInt()
+        val setGroupsWithEntries = database.setGroupDao().getSetGroupsWithEntriesByExerciseId(setGroupEntity.exerciseId.toLong()).first()
+        val setGroupWithEntries = setGroupsWithEntries.find { it.group.setGroupId == setGroupId }
+        assertEquals(0, setGroupWithEntries?.entries?.size ?: 0)
+
+        // Insert invalid SetEntry (negative reps)
+        val invalidSetEntry = SetEntryEntity(
+            setEntryId = 0,
+            setGroupId = setGroupId,
+            setIndex = 0,
+            weight = 40f,
+            reps = -5,
+            completed = false
+        )
+        database.setEntryDao().insertSetEntry(invalidSetEntry)
+        val retrievedInvalidEntry = database.setEntryDao().getEntriesForGroup(setGroupId).lastOrNull()
+        assertEquals(-5, retrievedInvalidEntry?.reps)
+
+        // Insert duplicate SetEntry
+        val duplicateSetEntry = SetEntryEntity(
+            setEntryId = 0,
+            setGroupId = setGroupId,
+            setIndex = 0,
+            weight = 40f,
+            reps = -5,
+            completed = false
+        )
+        database.setEntryDao().insertSetEntry(duplicateSetEntry)
+        val retrievedDuplicateEntry = database.setEntryDao().getEntriesForGroup(setGroupId).lastOrNull()
+        assertEquals(duplicateSetEntry.weight, retrievedDuplicateEntry?.weight)
     }
 }

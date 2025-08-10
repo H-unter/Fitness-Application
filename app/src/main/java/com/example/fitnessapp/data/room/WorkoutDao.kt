@@ -54,4 +54,7 @@ interface WorkoutDao{
 
     @Query("UPDATE Workout SET isAndroidHealthConnectSynced = :synced WHERE workoutId = :workoutId")
     suspend fun updateHealthConnectSynced(workoutId: Int, synced: Boolean)
+
+    @Query("SELECT * FROM Workout WHERE workoutId = :workoutId LIMIT 1")
+    suspend fun getWorkout(workoutId: Int): WorkoutEntity?
 }

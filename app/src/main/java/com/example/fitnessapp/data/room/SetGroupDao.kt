@@ -71,4 +71,7 @@ interface SetGroupDao {
         )
     """)
     suspend fun isSetGroupInProgress(setGroupId: Int): Boolean
+
+    @Query("SELECT * FROM SetGroup WHERE setGroupId = :setGroupId LIMIT 1")
+    suspend fun getSetGroup(setGroupId: Int): SetGroupEntity?
 }
