@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -101,6 +103,17 @@ fun ExerciseHistoryScreenContent(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(uiState.historyItems) {
+        if (uiState.historyItems.isNotEmpty()) {
+            listState.scrollToItem(
+                index = uiState.historyItems.size - 1,
+                scrollOffset = 0
+            )
+        }
+    }
+
     Scaffold(
         topBar = { ExerciseHistoryTopAppBar(uiState.exerciseName, onBack) }
     ) { padding ->
@@ -113,10 +126,10 @@ fun ExerciseHistoryScreenContent(
             Spacer(Modifier.height(16.dp))
 
             ExerciseHistoryPlot(
-                timestamps      = uiState.xValues,
-                volumeValues    = uiState.volumeSeries,
+                timestamps = uiState.xValues,
+                volumeValues = uiState.volumeSeries,
                 oneRepMaxValues = uiState.oneRepMaxSeries,
-                modifier        = Modifier
+                modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
             )
@@ -124,19 +137,20 @@ fun ExerciseHistoryScreenContent(
             Spacer(Modifier.height(16.dp))
 
             LazyColumn(
-                modifier           = Modifier.weight(1f).fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(24.dp),
-                contentPadding      = PaddingValues(bottom = 80.dp)
+                state = listState,
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
                 itemsIndexed(uiState.historyItems) { _, item ->
                     HistoricalExerciseCard(
                         date = item.timestamp,
                         gymName = item.gymName,
-                        sets = item.sets
+                        sets = item.sets,
+                        isInProgress = item.isInProgress
                     )
                 }
-                item { Spacer(Modifier.height(80.dp)) }
             }
+
         }
     }
 }
@@ -303,6 +317,7 @@ fun HistoricalExerciseCard(
     date: String,
     gymName: String,
     sets: List<Pair<String, String>>,
+    isInProgress: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val parsedSets: List<Pair<Float, Int>> = sets.mapNotNull { (w, r) ->
@@ -323,7 +338,10 @@ fun HistoricalExerciseCard(
             .padding(8.dp),
         shape = RoundedCornerShape(12.dp),
         shadowElevation = 4.dp,
-        color = MaterialTheme.colorScheme.surface
+        color = if (isInProgress)
+            MaterialTheme.colorScheme.primaryContainer
+        else
+            MaterialTheme.colorScheme.surface
     ) {
         Column(
             modifier = Modifier
@@ -331,8 +349,17 @@ fun HistoricalExerciseCard(
                 .padding(12.dp)
         ) {
             Text(
-                text = stringResource(R.string.gym_on_date, gymName, date),
-                style = MaterialTheme.typography.titleMedium
+                text = stringResource(
+                    if (isInProgress) R.string.gym_on_date_in_progress
+                    else R.string.gym_on_date,
+                    gymName,
+                    date
+                ),
+                style = MaterialTheme.typography.titleMedium,
+                color = if (isInProgress)
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                else
+                    MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(4.dp))
 
@@ -393,16 +420,26 @@ fun Preview_ExerciseHistoryScreenContent() {
     FitnessappTheme {
         ExerciseHistoryScreenContent(
             uiState = ExerciseHistoryUIState(
-                exerciseName    = "Bench Press",
-                historyItems    = listOf(
-                    SetGroupDisplayData("Yesterday", "Gold's Gym", listOf("50" to "8", "55" to "6")),
-                    SetGroupDisplayData("2 Days Ago", "Planet Fitness", listOf("60" to "5", "62.5" to "5", "65" to "4"))
+                exerciseName = "Bench Press",
+                historyItems = listOf(
+                    SetGroupDisplayData(
+                        timestamp = "2 Days Ago",
+                        gymName = "Planet Fitness",
+                        sets = listOf("60" to "5", "62.5" to "5", "65" to "4"),
+                        isInProgress = false
+                    ),
+                    SetGroupDisplayData(
+                        timestamp = "Today, 10:30",
+                        gymName = "Gold's Gym",
+                        sets = listOf("50" to "8", "55" to "6"),
+                        isInProgress = true
+                    )
                 ),
-                xValues         = listOf(1.0, 2.0),
-                volumeSeries    = listOf(200.0, 800.0),
+                xValues = listOf(1.0, 2.0),
+                volumeSeries = listOf(200.0, 800.0),
                 oneRepMaxSeries = listOf(13.3, 33.3),
-                isLoading       = false,
-                errorMessage    = null
+                isLoading = false,
+                errorMessage = null
             ),
             onBack = {}
         )

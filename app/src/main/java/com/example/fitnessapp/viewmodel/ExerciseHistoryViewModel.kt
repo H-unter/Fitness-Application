@@ -13,7 +13,8 @@ import java.time.format.DateTimeFormatter
 data class SetGroupDisplayData(
     val timestamp: String,
     val gymName: String,
-    val sets: List<Pair<String, String>>
+    val sets: List<Pair<String, String>>,
+    val isInProgress: Boolean = false
 )
 
 class ExerciseHistoryViewModel(
@@ -43,9 +44,13 @@ class ExerciseHistoryViewModel(
                     val gymNameDeferred = viewModelScope.async {
                         exerciseRepository.getGymNameForSetGroup(setGroup.setGroupId.toLong()) ?: "Unknown Gym"
                     }
+                    val isInProgressDeferred = viewModelScope.async {
+                        exerciseRepository.isSetGroupInProgress(setGroup.setGroupId.toLong())
+                    }
 
                     val workoutTime = workoutTimeDeferred.await()
                     val gymName = gymNameDeferred.await()
+                    val isInProgress = isInProgressDeferred.await()
 
                     timestamps.add(workoutTime.toDouble())
 
@@ -67,7 +72,8 @@ class ExerciseHistoryViewModel(
                         SetGroupDisplayData(
                             timestamp = formatter.format(java.time.Instant.ofEpochMilli(workoutTime)),
                             gymName = gymName,
-                            sets = setGroup.entries.map { it.weight to it.reps }
+                            sets = setGroup.entries.map { it.weight to it.reps },
+                            isInProgress = isInProgress
                         )
                     )
                 }

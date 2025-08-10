@@ -27,4 +27,7 @@ interface ExerciseRepository {
 
     // update the name of an exercise given its id
     suspend fun updateExerciseName(exerciseId: Long, newName: String)
+
+    // check if a set group belongs to the current workout
+    suspend fun isSetGroupInProgress(setGroupId: Long): Boolean
 }

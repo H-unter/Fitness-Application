@@ -61,4 +61,14 @@ interface SetGroupDao {
     @Query("DELETE FROM SetGroup WHERE workoutId = :workoutId")
     suspend fun deleteSetGroupsByWorkoutId(workoutId: Int)
 
+    @Query("""
+        SELECT EXISTS (
+            SELECT 1 
+            FROM SetGroup sg 
+            JOIN Workout w ON sg.workoutId = w.workoutId 
+            WHERE sg.setGroupId = :setGroupId 
+            AND w.isInProgress = 1
+        )
+    """)
+    suspend fun isSetGroupInProgress(setGroupId: Int): Boolean
 }

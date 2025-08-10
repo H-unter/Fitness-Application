@@ -38,6 +38,7 @@
     <string name="history_title">History: %1$s</string>
     <string name="workout_on_date">Workout – %1$s</string>
     <string name="gym_on_date">%1$s – %2$s</string>
+    <string name="gym_on_date_in_progress">%1$s – %2$s (In Progress)</string>
     <string name="total_volume">Total Volume = %1$d</string>
     <string name="set_row_label">%1$d: %2$d reps × %3$dkg</string>
     <string name="set_row_stats">Vol %1$d · 1RM %2$.1f</string>

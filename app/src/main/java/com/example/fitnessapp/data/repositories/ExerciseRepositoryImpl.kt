@@ -64,4 +64,7 @@ class ExerciseRepositoryImpl(
     override suspend fun updateExerciseName(exerciseId: Long, newName: String) {
         exerciseDao.updateExerciseName(exerciseId, newName.trim())
     }
+
+    override suspend fun isSetGroupInProgress(setGroupId: Long): Boolean =
+        setGroupDao.isSetGroupInProgress(setGroupId.toInt())
 }
