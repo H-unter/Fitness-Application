@@ -2,6 +2,8 @@ package com.example.fitnessapp.data
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.util.Log
 import androidx.activity.result.contract.ActivityResultContract
@@ -12,30 +14,29 @@ import androidx.health.connect.client.changes.Change
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ExerciseSegment
 import androidx.health.connect.client.records.ExerciseSessionRecord
-import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.metadata.Metadata
-import androidx.health.connect.client.request.ChangesTokenRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
-import java.io.IOException
+import com.example.fitnessapp.data.room.SetGroupWithEntries
+import com.example.fitnessapp.data.room.WorkoutWithSetGroupsAndEntries
 import java.time.Instant
 import java.time.ZonedDateTime
+import androidx.core.net.toUri
 
 
 const val MIN_SUPPORTED_SDK = Build.VERSION_CODES.O_MR1
 
-
 /**
  * Manager class for Health Connect operations, as implemented in the codelabs
+ * see below the documentation that I referred to for this implementation
  * https://developer.android.com/reference/android/health/connect/HealthConnectManager
  *
  * https://github.com/android/android-health-connect-codelab/blob/main/finished/src/main/java/com/example/healthconnect/codelab/data/HealthConnectManager.kt
  */
-class HealthConnectManager(private val context: Context) {
-
-    internal val healthConnectClient by lazy { HealthConnectClient.getOrCreate(context) }
+class HealthConnectManager(
+    private val context: Context,
+    val healthConnectClient: HealthConnectClient = HealthConnectClient.getOrCreate(context)
+) {
 
     companion object {
         private const val TAG = "HealthConnectManager"
@@ -55,13 +56,39 @@ class HealthConnectManager(private val context: Context) {
     suspend fun hasAllPermissions(): Boolean {
         return try {
             val granted = healthConnectClient.permissionController.getGrantedPermissions()
+            val hasAll = granted.containsAll(PERMISSIONS)
             Log.d(TAG, "Granted permissions: $granted")
             Log.d(TAG, "Required permissions: $PERMISSIONS")
-            granted.containsAll(PERMISSIONS)
+            Log.d(TAG, "Has all permissions: $hasAll")
+            hasAll
         } catch (e: Exception) {
             Log.e(TAG, "Error checking permissions", e)
             false
         }
+    }
+
+    suspend fun revokeAllPermissions(): Boolean {
+        return try {
+            Log.d(TAG, "Attempting to revoke all Health Connect permissions")
+            healthConnectClient.permissionController.revokeAllPermissions()
+            
+            // Give the system time to process
+            kotlinx.coroutines.delay(1000)
+            
+            // Check if revocation was successful
+            val stillHasPermissions = hasAllPermissions()
+            val success = !stillHasPermissions
+            
+            Log.d(TAG, "Revocation successful: $success")
+            success
+        } catch (e: Exception) {
+            Log.e(TAG, "Error revoking permissions", e)
+            false
+        }
+    }
+
+    suspend fun getGrantedPermissions(): Set<String> {
+        return healthConnectClient.permissionController.getGrantedPermissions()
     }
 
     // Check Health Connect availability
@@ -174,9 +201,8 @@ class HealthConnectManager(private val context: Context) {
             val segmentStart = workoutStart.toInstant().plusMillis(index * segmentDurationMs)
             val segmentEnd = workoutStart.toInstant().plusMillis((index + 1) * segmentDurationMs)
 
-            // Calculate total repetitions for this set group
             val totalReps = setGroup.entries.sumOf { entry ->
-                entry.reps.toInt()
+                entry.reps?.toInt() ?: 0
             }
 
             ExerciseSegment(
@@ -255,32 +281,18 @@ class HealthConnectManager(private val context: Context) {
 
     private fun isSupported() = Build.VERSION.SDK_INT >= MIN_SUPPORTED_SDK
 
-    suspend fun getChangesToken(): String {
-        return healthConnectClient.getChangesToken(
-            ChangesTokenRequest(
-                setOf(
-                    ExerciseSessionRecord::class
-                )
-            )
-        )
-    }
-
-    sealed class ChangesMessage {
-        data class NoMoreChanges(val nextChangesToken: String) : ChangesMessage()
-        data class ChangeList(val changes: List<Change>) : ChangesMessage()
-    }
-
-    suspend fun getChanges(token: String): Flow<ChangesMessage> = flow {
-        var nextChangesToken = token
-        do {
-            val response = healthConnectClient.getChanges(nextChangesToken)
-            if (response.changesTokenExpired) {
-                throw IOException("Changes token has expired")
+    fun launchHealthConnectPermissionsScreen(context: Context) {
+        val intent = context.packageManager.getLaunchIntentForPackage("com.google.android.apps.healthdata")
+        if (intent != null) {
+            context.startActivity(intent)
+        } else {
+            val playStoreIntent = Intent(Intent.ACTION_VIEW).apply {
+                data =
+                    "https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata".toUri()
+                setPackage("com.android.vending")
             }
-            emit(ChangesMessage.ChangeList(response.changes))
-            nextChangesToken = response.nextChangesToken
-        } while (response.hasMore)
-        emit(ChangesMessage.NoMoreChanges(nextChangesToken))
+            context.startActivity(playStoreIntent)
+        }
     }
 
 }

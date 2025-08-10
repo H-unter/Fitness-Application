@@ -9,7 +9,8 @@ data class WorkoutHistoryUIState(
     val permissionsChecked: Boolean = false,
     val healthConnectTestResult: String? = null,
     val healthConnectSessions: List<HealthConnectSession>? = null,
-    val showHealthConnectDialog: Boolean = false
+    val showHealthConnectDialog: Boolean = false,
+    val healthConnectWorkoutIds: Set<String>? = null
 )
 
 data class WorkoutHistoryItem(
@@ -20,7 +21,8 @@ data class WorkoutHistoryItem(
     val setGroups: List<SetGroup>,
     val gymName: String?,
     val rawStartTimeMs: Long,
-    val rawEndTimeMs: Long
+    val rawEndTimeMs: Long,
+    val isAndroidHealthConnectSynced: Boolean = false
 )
 
 data class HealthConnectSession(

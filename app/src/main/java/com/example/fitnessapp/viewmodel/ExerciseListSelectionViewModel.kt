@@ -3,7 +3,7 @@ package com.example.fitnessapp.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.fitnessapp.data.ExerciseRepository
+import com.example.fitnessapp.data.repositories.ExerciseRepository
 import com.example.fitnessapp.data.Exercise
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -31,5 +31,10 @@ class ExerciseListSelectionViewModel(
             "createExercise() — name = $name"
         )
         exerciseRepository.insertExercise(name)
+    }
+
+    // update an exercise name
+    fun updateExerciseName(exerciseId: Long, newName: String) = viewModelScope.launch {
+        exerciseRepository.updateExerciseName(exerciseId, newName)
     }
 }

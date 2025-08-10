@@ -1,19 +1,22 @@
 package com.example.fitnessapp.di
 
 import androidx.room.Room
-import com.example.fitnessapp.data.CurrentWorkoutRepository
-import com.example.fitnessapp.data.CurrentWorkoutRepositoryImpl
-import com.example.fitnessapp.data.ExerciseDao
-import com.example.fitnessapp.data.ExerciseRepository
-import com.example.fitnessapp.data.ExerciseRepositoryImpl
-import com.example.fitnessapp.data.GymActivityDatabase
-import com.example.fitnessapp.data.GymDao
-import com.example.fitnessapp.data.GymRepository
-import com.example.fitnessapp.data.GymRepositoryImpl
 import com.example.fitnessapp.data.HealthConnectManager
-import com.example.fitnessapp.data.SetEntryDao
-import com.example.fitnessapp.data.SetGroupDao
-import com.example.fitnessapp.data.WorkoutDao
+import com.example.fitnessapp.data.repositories.CurrentWorkoutRepository
+import com.example.fitnessapp.data.repositories.CurrentWorkoutRepositoryImpl
+import com.example.fitnessapp.data.repositories.ExerciseRepository
+import com.example.fitnessapp.data.repositories.ExerciseRepositoryImpl
+import com.example.fitnessapp.data.repositories.GymRepository
+import com.example.fitnessapp.data.repositories.GymRepositoryImpl
+import com.example.fitnessapp.data.repositories.WorkoutRepository
+import com.example.fitnessapp.data.repositories.WorkoutRepositoryImpl
+import com.example.fitnessapp.data.room.ExerciseDao
+import com.example.fitnessapp.data.room.GymActivityDatabase
+import com.example.fitnessapp.data.room.GymDao
+import com.example.fitnessapp.data.room.SetEntryDao
+import com.example.fitnessapp.data.room.SetGroupDao
+import com.example.fitnessapp.data.room.WorkoutDao
+import com.example.fitnessapp.viewmodel.AppSettingsViewModel
 import com.example.fitnessapp.viewmodel.CurrentWorkoutViewModel
 import com.example.fitnessapp.viewmodel.ExerciseHistoryViewModel
 import com.example.fitnessapp.viewmodel.ExerciseListSelectionViewModel
@@ -76,16 +79,20 @@ val appModule = module {
     single<ExerciseRepository> {
         ExerciseRepositoryImpl(
             exerciseDao = get(),
-            setGroupDao = get(),
-            workoutDao  = get()
+            setGroupDao = get()
+        )
+    }
+
+    single<WorkoutRepository> {
+        WorkoutRepositoryImpl(
+            workoutDao = get()
         )
     }
 
     // view models
     viewModel { ExerciseListSelectionViewModel(exerciseRepository = get()) }
     viewModel { CurrentWorkoutViewModel(workoutRepository = get(), gymRepository = get(), exerciseRepository = get()) }
-    viewModel { WorkoutHistoryViewModel(workoutDao = get(), healthConnectManager = get()) }
+    viewModel { WorkoutHistoryViewModel(workoutRepository = get(), healthConnectManager = get()) }
     viewModel { ExerciseHistoryViewModel(exerciseRepository = get(), savedStateHandle = get()) }
+    viewModel { AppSettingsViewModel(healthConnectManager = get()) }
 }
-
-

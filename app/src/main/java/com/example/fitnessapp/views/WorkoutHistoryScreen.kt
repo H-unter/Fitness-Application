@@ -12,12 +12,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -31,7 +36,11 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -39,6 +48,7 @@ import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.example.fitnessapp.R
 import com.example.fitnessapp.data.HealthConnectManager
 import com.example.fitnessapp.data.SetEntry
 import com.example.fitnessapp.data.SetGroup
@@ -53,42 +63,37 @@ import java.util.Locale
 @Composable
 fun WorkoutHistoryScreen(
     navController: NavHostController,
-    viewModel: WorkoutHistoryViewModel = koinViewModel()
+    viewModel: WorkoutHistoryViewModel = koinViewModel(),
+    onPermissionsChecked: (Boolean) -> Unit = {},
+    overridePermissionsGranted: Boolean? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
-    val requestPermissions = rememberLauncherForActivityResult(
-        viewModel.requestPermissionActivityContract
-    ) { granted ->
+    val effectivePermissionsGranted = overridePermissionsGranted ?: uiState.permissionsGranted
+    val requestPermissions = rememberLauncherForActivityResult(viewModel.requestPermissionActivityContract) { granted ->
         if (granted.containsAll(HealthConnectManager.PERMISSIONS)) {
             Log.d("WorkoutHistory", "Permissions successfully granted")
-            viewModel.checkAndRequestPermissions()
+            viewModel.onPermissionsGranted()
         } else {
             Log.d("WorkoutHistory", "Lack of required permissions")
+            viewModel.onPermissionsDenied()
         }
     }
 
-    LaunchedEffect(Unit) {
-        viewModel.checkAndRequestPermissions()
+    LaunchedEffect(uiState.permissionsGranted) {
+        Log.d("WorkoutHistory", "Local permissions state changed to: ${uiState.permissionsGranted}")
+        onPermissionsChecked(uiState.permissionsGranted)
     }
+    LaunchedEffect(navController.currentBackStackEntry) { viewModel.refreshPermissionsState() }
+    LaunchedEffect(Unit) { viewModel.checkPermissionsOnly() }
 
-    // If permissions not granted, request them
-    if (uiState.permissionsChecked && !uiState.permissionsGranted) {
-        LaunchedEffect(Unit) {
-            Log.d("WorkoutHistory", "Launching permission request...")
-            requestPermissions.launch(HealthConnectManager.PERMISSIONS)
-        }
+    LaunchedEffect(navController.currentBackStackEntry) {
+        viewModel.loadWorkoutHistory()
     }
 
     WorkoutHistoryScreenContent(
-        uiState = uiState,
+        uiState = uiState.copy(permissionsGranted = effectivePermissionsGranted),
         navController = navController,
-        onRequestPermissions = {
-            requestPermissions.launch(HealthConnectManager.PERMISSIONS)
-        },
-        onViewHealthConnectData = {
-            viewModel.readAllHealthConnectData()
-        },
+        onRequestPermissions = { requestPermissions.launch(HealthConnectManager.PERMISSIONS) },
         viewModel = viewModel
     )
 }
@@ -99,44 +104,28 @@ fun WorkoutHistoryScreenContent(
     uiState: WorkoutHistoryUIState,
     navController: NavHostController,
     onRequestPermissions: () -> Unit = {},
-    onViewHealthConnectData: () -> Unit = {}, // Added parameter
     modifier: Modifier = Modifier,
-    viewModel: WorkoutHistoryViewModel? = null // Make ViewModel optional
+    viewModel: WorkoutHistoryViewModel? = null
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Column {
-                        Text("Workout History")
-                    }
-                },
+                title = { Column { Text(stringResource(R.string.workout_history_title)) } },
                 navigationIcon = {
-                    if (uiState.permissionsGranted) {
-                        IconButton(
-                            onClick = {
-                                // Use the passed function instead of directly calling ViewModel
-                                onViewHealthConnectData()
-                            },
-                            enabled = true
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CloudDone,
-                                contentDescription = "View Health Connect Data",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
+                    IconButton(
+                        onClick = {
+                            if (uiState.permissionsGranted) viewModel?.syncHistoricalWorkoutsToHealthConnect()
+                            else onRequestPermissions()
                         }
-                    } else {
-                        IconButton(
-                            onClick = { onRequestPermissions() },
-                            enabled = true
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CloudOff,
-                                contentDescription = "Request Health Connect permissions",
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                        }
+                    ) {
+                        Icon(
+                            imageVector = if (uiState.permissionsGranted) Icons.Default.CloudSync else Icons.Outlined.CloudOff,
+                            contentDescription = if (uiState.permissionsGranted)
+                                stringResource(R.string.sync_to_health_connect)
+                            else
+                                stringResource(R.string.request_health_connect_permissions),
+                            tint = if (uiState.permissionsGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -158,15 +147,13 @@ fun WorkoutHistoryScreenContent(
                     onDismiss = { viewModel?.dismissHealthConnectDialog() }
                 )
             }
-
             if (uiState.workouts.isEmpty()) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize(),
+                    modifier = Modifier.fillMaxSize(),
                     contentAlignment = androidx.compose.ui.Alignment.Center
                 ) {
                     Text(
-                        text = "No workouts to show, get lifting!",
+                        text = stringResource(R.string.no_workouts_to_show),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -177,7 +164,10 @@ fun WorkoutHistoryScreenContent(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     items(uiState.workouts) { workout ->
-                        WorkoutHistoryItem(workout = workout)
+                        WorkoutHistoryItem(
+                            workout = workout,
+                            isInHealthConnect = workout.isAndroidHealthConnectSynced
+                        )
                     }
                 }
             }
@@ -187,55 +177,59 @@ fun WorkoutHistoryScreenContent(
 
 @Composable
 private fun WorkoutHistoryItem(
-    workout: WorkoutHistoryItem) {
+    workout: WorkoutHistoryItem,
+    isInHealthConnect: Boolean = false
+) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         tonalElevation = 2.dp
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Start
-            ) {
-                workout.gymName?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(end = 8.dp)
-                    )
-                }
-
-                Text(
-                    text = workout.date,
-                    style = MaterialTheme.typography.titleMedium
-                )
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = workout.startTime,
-                    style = MaterialTheme.typography.bodyMedium
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.Start
+                ) {
+                    workout.gymName?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                    }
+                    Text(text = workout.date, style = MaterialTheme.typography.titleMedium)
+                }
+                Icon(
+                    imageVector = if (isInHealthConnect) Icons.Default.CloudDone else Icons.Default.CloudOff,
+                    contentDescription = if (isInHealthConnect)
+                        stringResource(R.string.synced_to_health_connect)
+                    else
+                        stringResource(R.string.not_synced_to_health_connect),
+                    tint = if (isInHealthConnect)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.size(20.dp)
                 )
-
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = workout.startTime, style = MaterialTheme.typography.bodyMedium)
                 Text(
-                    text = "Duration: ${workout.duration}",
+                    text = stringResource(R.string.duration_with_value, workout.duration),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium
                 )
             }
-
             Spacer(modifier = Modifier.height(12.dp))
-
             workout.setGroups.groupBy { it.exerciseName }.forEach { (exerciseName, groups) ->
                 ExerciseDetailCard(exerciseName, groups)
                 Spacer(modifier = Modifier.height(8.dp))
@@ -266,15 +260,10 @@ private fun ExerciseDetailCard(
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold
             )
-
             Spacer(modifier = Modifier.height(4.dp))
-
-            // Display each set entry for this exercise
             val allEntries = groups.flatMap { it.entries }
             allEntries.forEachIndexed { index, entry ->
-                val weight = entry.weight.toFloatOrNull() ?: 0f
                 val reps = entry.reps.toIntOrNull() ?: 0
-
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -282,27 +271,24 @@ private fun ExerciseDetailCard(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Set ${index + 1}",
+                        text = stringResource(R.string.set_number, index + 1),
                         style = MaterialTheme.typography.bodySmall
                     )
                     Text(
-                        text = "${weight.toInt()}kg × $reps reps",
+                        text = "${entry.weight} x $reps",
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Medium
                     )
                 }
             }
-
-            // Calculate and display total volume
             val totalVolume = allEntries.sumOf {
                 val weight = it.weight.toFloatOrNull() ?: 0f
                 val reps = it.reps.toIntOrNull() ?: 0
                 (weight * reps).toInt()
             }
-
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Total volume: $totalVolume kg",
+                text = stringResource(R.string.total_volume_kg, totalVolume),
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.primary
@@ -316,11 +302,11 @@ fun HealthConnectDataDialog(
     sessions: List<HealthConnectSession>,
     onDismiss: () -> Unit
 ) {
-    androidx.compose.material3.AlertDialog(
+    AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Health Connect Data",
+                text = stringResource(R.string.health_connect_data),
                 style = MaterialTheme.typography.headlineSmall
             )
         },
@@ -331,20 +317,17 @@ fun HealthConnectDataDialog(
                     .padding(vertical = 8.dp)
             ) {
                 Text(
-                    text = "Found ${sessions.size} exercise sessions in Health Connect",
+                    text = stringResource(R.string.found_sessions, sessions.size),
                     style = MaterialTheme.typography.bodyMedium
                 )
-
                 Spacer(modifier = Modifier.height(8.dp))
-
                 if (sessions.isEmpty()) {
                     Text(
-                        text = "No exercise sessions found in Health Connect",
+                        text = stringResource(R.string.no_sessions_found),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 } else {
-                    // Use LazyColumn for potentially large lists
-                    androidx.compose.foundation.lazy.LazyColumn(
+                    LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(300.dp)
@@ -361,10 +344,8 @@ fun HealthConnectDataDialog(
             }
         },
         confirmButton = {
-            androidx.compose.material3.Button(
-                onClick = onDismiss
-            ) {
-                Text("Close")
+            Button(onClick = onDismiss) {
+                Text(stringResource(R.string.close))
             }
         }
     )
@@ -385,52 +366,43 @@ fun HealthConnectSessionItem(session: HealthConnectSession) {
             .padding(vertical = 4.dp)
     ) {
         Text(
-            text = session.title ?: "Untitled Workout",
+            text = session.title ?: stringResource(R.string.untitled_workout),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
-
         Spacer(modifier = Modifier.height(4.dp))
-
-        // Display exercise type
         val exerciseTypeStr = when (session.exerciseType) {
-            ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING -> "Strength Training"
-            else -> "Other (${session.exerciseType})"
+            ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING -> stringResource(R.string.strength_training)
+            else -> stringResource(R.string.other_exercise_type, session.exerciseType)
         }
-
         Text(
-            text = "Type: $exerciseTypeStr",
+            text = stringResource(R.string.type_with_value, exerciseTypeStr),
             style = MaterialTheme.typography.bodyMedium
         )
-
         Text(
-            text = "Duration: ${if (durationHours > 0) "${durationHours}h " else ""}${durationMinutes % 60}m",
+            text = stringResource(R.string.duration_colon, if (durationHours > 0) "${durationHours}h " else "", durationMinutes % 60),
             style = MaterialTheme.typography.bodyMedium
         )
-
         Text(
-            text = "Start: $startTimeFormatted",
+            text = stringResource(R.string.start_time, startTimeFormatted),
             style = MaterialTheme.typography.bodySmall
         )
-
         Text(
-            text = "End: $endTimeFormatted",
+            text = stringResource(R.string.end_time, endTimeFormatted),
             style = MaterialTheme.typography.bodySmall
         )
-
         if (session.segmentCount > 0) {
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Segments: ${session.segmentCount}, Total Reps: ${session.totalReps}",
+                text = stringResource(R.string.segments_total_reps, session.segmentCount, session.totalReps),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium
             )
         }
-
         session.clientRecordId?.let { clientId ->
             Text(
-                text = "ID: $clientId",
+                text = stringResource(R.string.id_with_value, clientId),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.outline
             )
@@ -438,7 +410,7 @@ fun HealthConnectSessionItem(session: HealthConnectSession) {
     }
 }
 
-
+// --- Previews ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 @Preview(name = "Permissions Granted", showBackground = true)
@@ -476,8 +448,7 @@ private fun WorkoutHistoryScreenPreview_PermissionsGranted() {
     FitnessappTheme {
         WorkoutHistoryScreenContent(
             uiState = sampleState,
-            navController = rememberNavController(),
-            onViewHealthConnectData = {} // Empty function for preview
+            navController = rememberNavController()
         )
     }
 }
@@ -494,18 +465,13 @@ private fun WorkoutHistoryScreenPreview_PermissionsNotGranted() {
     FitnessappTheme {
         WorkoutHistoryScreenContent(
             uiState = sampleState,
-            navController = rememberNavController(),
-            onViewHealthConnectData = {} // Empty function for preview
-        )
+            navController = rememberNavController()
+            )
     }
 }
 
-// Add preview for HealthConnectDataDialog
 @Composable
-@Preview(
-    name = "Health Connect Dialog Preview",
-    showBackground = true
-)
+@Preview(name = "Health Connect Dialog Preview", showBackground = true)
 fun HealthConnectDataDialogPreview() {
     val sampleSessions = listOf(
         HealthConnectSession(
@@ -529,7 +495,6 @@ fun HealthConnectDataDialogPreview() {
             clientRecordId = "workout_124"
         )
     )
-
     FitnessappTheme {
         Surface {
             HealthConnectDataDialog(
