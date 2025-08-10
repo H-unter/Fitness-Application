@@ -40,9 +40,40 @@ class WorkoutHistoryViewModel(
     private fun loadWorkoutHistory() {
         viewModelScope.launch {
             try {
+                val healthConnectResult = healthConnectManager.readAllExerciseSessions()
+                val healthConnectSessions = healthConnectResult.getOrNull()?.associateBy {
+                    it.metadata.clientRecordId
+                } ?: emptyMap()
+
                 val workouts = workoutDao.getWorkouts().first()
                     .filter { !it.isInProgress }
+                    .filter { it.endTime > 0 }
 
+                // Update sync status for all workouts
+                workouts.forEach { workout ->
+                    val workoutId = workout.workoutId.toString()
+                    val existsInHealthConnect = healthConnectSessions.containsKey(workoutId)
+
+                    if (existsInHealthConnect && !workout.isAndroidHealthConnectSynced) {
+                        // Update the flag if it exists in Health Connect but isn't marked as synced
+                        workoutDao.updateHealthConnectSynced(workout.workoutId, true)
+                        Log.d(TAG, "Updated sync status for workout ${workout.workoutId}")
+                    }
+                }
+
+                // Only attempt to sync workouts that are truly not in Health Connect
+                workouts.forEach { workout ->
+                    val workoutId = workout.workoutId.toString()
+                    if (!healthConnectSessions.containsKey(workoutId)) {
+                        val workoutWithGroups = workoutDao.getWorkoutWithSetGroupsAndEntries(workout.workoutId).first()
+                        val result = healthConnectManager.writeWorkoutToHealthConnect(workoutWithGroups)
+                        if (result.isSuccess) {
+                            workoutDao.updateHealthConnectSynced(workout.workoutId, true)
+                        }
+                    }
+                }
+
+                // Continue with existing workout history loading
                 val historyItems = workouts.map { workout ->
                     val workoutWithGroups = workoutDao.getWorkoutWithSetGroupsAndEntries(workout.workoutId).first()
                     val setGroups = workoutWithGroups.setGroups.map { it.toDomain() }
@@ -69,6 +100,7 @@ class WorkoutHistoryViewModel(
 
                 _uiState.value = WorkoutHistoryUIState(workouts = historyItems)
             } catch (e: Exception) {
+                Log.e(TAG, "Error loading workout history", e)
                 e.printStackTrace()
             }
         }
@@ -104,18 +136,12 @@ class WorkoutHistoryViewModel(
                 Log.d(TAG, "Health Connect availability: $availability")
 
                 if (availability != HealthConnectAvailability.INSTALLED) {
-                    _uiState.value = _uiState.value.copy(
-                        permissionsGranted = false,
-                        permissionsChecked = true
-                    )
+                    updatePermissionsState(false)
                     return@launch
                 }
 
                 val hasPermissions = healthConnectManager.hasAllPermissions()
-                _uiState.value = _uiState.value.copy(
-                    permissionsGranted = hasPermissions,
-                    permissionsChecked = true
-                )
+                updatePermissionsState(hasPermissions)
 
                 // Load Health Connect workout IDs only if permissions are granted
                 if (hasPermissions) {
@@ -123,12 +149,17 @@ class WorkoutHistoryViewModel(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error checking permissions", e)
-                _uiState.value = _uiState.value.copy(
-                    permissionsGranted = false,
-                    permissionsChecked = true
-                )
+                updatePermissionsState(false)
             }
         }
+    }
+
+    private fun updatePermissionsState(granted: Boolean) {
+        _uiState.value = _uiState.value.copy(
+            permissionsGranted = granted,
+            permissionsChecked = true
+        )
+        Log.d(TAG, "Permissions state updated to: $granted")
     }
 
     fun syncHistoricalWorkoutsToHealthConnect() {
@@ -314,4 +345,5 @@ class WorkoutHistoryViewModel(
         )
         Log.d(TAG, "Permissions denied - UI state updated")
     }
+
 }

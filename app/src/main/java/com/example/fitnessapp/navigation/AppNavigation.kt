@@ -16,13 +16,25 @@ fun AppNavigation(
     onThemeChange: (Boolean) -> Unit
 ) {
     val navController = rememberNavController()
-    var permissionsGranted by remember { mutableStateOf(false) }
     val workoutHistoryViewModel: WorkoutHistoryViewModel = koinViewModel()
+
+    var permissionsGranted by remember {
+        mutableStateOf(workoutHistoryViewModel.uiState.value.permissionsGranted)
+    }
+
+    LaunchedEffect(Unit) {
+        workoutHistoryViewModel.checkPermissionsOnly()
+        workoutHistoryViewModel.uiState.collect { state ->
+            permissionsGranted = state.permissionsGranted
+        }
+    }
 
     NavHost(navController = navController, startDestination = Screens.CurrentWorkoutScreen.route) {
 
         composable(Screens.CurrentWorkoutScreen.route) {
-            CurrentWorkoutScreen(navController = navController)
+            CurrentWorkoutScreen(
+                navController = navController
+            )
         }
 
         composable(Screens.ExerciseListSelectionScreen.route) {
@@ -37,10 +49,7 @@ fun AppNavigation(
                 navController = navController,
                 viewModel = workoutHistoryViewModel,
                 onPermissionsChecked = { granted ->
-                    if (permissionsGranted != granted) {
-                        permissionsGranted = granted
-                        Log.d("AppNavigation", "Permissions state updated to: $granted")
-                    }
+                    permissionsGranted = granted
                 },
                 overridePermissionsGranted = permissionsGranted
             )
@@ -64,7 +73,6 @@ fun AppNavigation(
                 onPermissionsRevoked = {
                     permissionsGranted = false
                     workoutHistoryViewModel.onPermissionsRevoked()
-                    Log.d("AppNavigation", "Permissions revoked - state updated to false")
                 }
             )
         }
