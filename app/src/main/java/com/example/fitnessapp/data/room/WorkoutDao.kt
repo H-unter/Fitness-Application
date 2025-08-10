@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface WorkoutDao{
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertWorkout(workout: WorkoutEntity): Long  // return the rowId
+    suspend fun insertWorkout(workout: WorkoutEntity): Long
 
     // get all historical workouts
     @Query("Select * From Workout")

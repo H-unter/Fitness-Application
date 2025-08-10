@@ -7,11 +7,11 @@ import com.example.fitnessapp.data.SetEntry
 @Entity(tableName = "SetEntry")
 data class SetEntryEntity(
     @PrimaryKey(autoGenerate = true) val setEntryId: Int,
-    val setGroupId: Int,  // links to SetGroupEntity.setGroupId
-    val setIndex: Int,    // index/order within the group
+    val setGroupId: Int,
+    val setIndex: Int,
     val weight: Float?,
     val reps: Int?,
-    val completed: Boolean = false  // Added to persist completion status
+    val completed: Boolean = false
 )
 
 fun SetEntryEntity.toDomain(): SetEntry = SetEntry(

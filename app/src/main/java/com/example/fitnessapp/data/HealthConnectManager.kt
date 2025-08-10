@@ -15,23 +15,20 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ExerciseSegment
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.metadata.Metadata
-import androidx.health.connect.client.request.ChangesTokenRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import com.example.fitnessapp.data.room.SetGroupWithEntries
 import com.example.fitnessapp.data.room.WorkoutWithSetGroupsAndEntries
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
-import java.io.IOException
 import java.time.Instant
 import java.time.ZonedDateTime
+import androidx.core.net.toUri
 
 
 const val MIN_SUPPORTED_SDK = Build.VERSION_CODES.O_MR1
 
-
 /**
  * Manager class for Health Connect operations, as implemented in the codelabs
+ * see below the documentation that I referred to for this implementation
  * https://developer.android.com/reference/android/health/connect/HealthConnectManager
  *
  * https://github.com/android/android-health-connect-codelab/blob/main/finished/src/main/java/com/example/healthconnect/codelab/data/HealthConnectManager.kt
@@ -284,43 +281,14 @@ class HealthConnectManager(
 
     private fun isSupported() = Build.VERSION.SDK_INT >= MIN_SUPPORTED_SDK
 
-    suspend fun getChangesToken(): String {
-        return healthConnectClient.getChangesToken(
-            ChangesTokenRequest(
-                setOf(
-                    ExerciseSessionRecord::class
-                )
-            )
-        )
-    }
-
-    sealed class ChangesMessage {
-        data class NoMoreChanges(val nextChangesToken: String) : ChangesMessage()
-        data class ChangeList(val changes: List<Change>) : ChangesMessage()
-    }
-
-    suspend fun getChanges(token: String): Flow<ChangesMessage> = flow {
-        var nextChangesToken = token
-        do {
-            val response = healthConnectClient.getChanges(nextChangesToken)
-            if (response.changesTokenExpired) {
-                throw IOException("Changes token has expired")
-            }
-            emit(ChangesMessage.ChangeList(response.changes))
-            nextChangesToken = response.nextChangesToken
-        } while (response.hasMore)
-        emit(ChangesMessage.NoMoreChanges(nextChangesToken))
-    }
-
     fun launchHealthConnectPermissionsScreen(context: Context) {
-        // Health Connect app package name
         val intent = context.packageManager.getLaunchIntentForPackage("com.google.android.apps.healthdata")
         if (intent != null) {
             context.startActivity(intent)
         } else {
-            // Fallback: open Health Connect in Play Store
             val playStoreIntent = Intent(Intent.ACTION_VIEW).apply {
-                data = Uri.parse("https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata")
+                data =
+                    "https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata".toUri()
                 setPackage("com.android.vending")
             }
             context.startActivity(playStoreIntent)
