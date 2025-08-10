@@ -185,22 +185,24 @@ fun ExerciseHistoryPlot(
         .fillMaxWidth()
         .height(200.dp)
 ) {
-    Log.d(
-        "ExerciseHistoryPlot",
-        "plot data → xValues: $timestamps\nvolumeSeries: $volumeValues\noneRepMaxSeries: $oneRepMaxValues"
-    )
-
-    val barColor = MaterialTheme.colorScheme.primary.toArgb()
-    val lineColor = MaterialTheme.colorScheme.secondary.toArgb()
-    val textColor = MaterialTheme.colorScheme.onSurface
     val modelProducer = remember { CartesianChartModelProducer() }
     val vicoTheme = rememberM3VicoTheme()
+    val volumeLineColor = MaterialTheme.colorScheme.tertiary.toArgb()
+    val oneRmLineColor = MaterialTheme.colorScheme.primary.toArgb()
+    val textColor = MaterialTheme.colorScheme.onSurface
+
+    val oneDayStepMs = remember { Duration.ofDays(1).toMillis().toDouble() }
+    val chartZoomState = rememberVicoZoomState(initialZoom = Zoom.Content)
 
     LaunchedEffect(timestamps, volumeValues, oneRepMaxValues) {
         modelProducer.runTransaction {
             if (timestamps.size == volumeValues.size && timestamps.isNotEmpty()) {
-                columnSeries { series(x = timestamps, y = volumeValues) }
-                lineSeries { series(x = timestamps, y = oneRepMaxValues) }
+                lineSeries {
+                    series(x = timestamps, y = volumeValues)
+                }
+                lineSeries {
+                    series(x = timestamps, y = oneRepMaxValues)
+                }
                 extras { it[historyLegendKey] = listOf("Volume", "1 RM") }
             }
         }
@@ -216,42 +218,39 @@ fun ExerciseHistoryPlot(
 
     val axisTitleComponent = rememberTextComponent(
         color = textColor,
-        textSize = MaterialTheme.typography.bodySmall.fontSize
+        textSize = MaterialTheme.typography.bodyMedium.fontSize
     )
-    val textComponent = rememberTextComponent(
-        color = textColor
+    val legendComponent = rememberTextComponent(
+        color = textColor,
+        textSize = MaterialTheme.typography.bodyMedium.fontSize
     )
-    val chartZoomState = rememberVicoZoomState(initialZoom = Zoom.Content)
-    val oneDayStepMs = Duration.ofDays(1).toMillis().toDouble()
 
     val chart = rememberCartesianChart(
-        rememberColumnCartesianLayer(
-            columnProvider = ColumnCartesianLayer.ColumnProvider.series(
-                rememberLineComponent(
-                    fill = fill(Color(barColor)),
-                    thickness = 0.1.dp
+        rememberLineCartesianLayer(
+            lineProvider = LineCartesianLayer.LineProvider.series(
+                LineCartesianLayer.Line(
+                    LineCartesianLayer.LineFill.single(fill(Color(volumeLineColor)))
                 )
             ),
             rangeProvider = CartesianLayerRangeProvider.auto(),
-            verticalAxisPosition = Axis.Position.Vertical.End,
-            columnCollectionSpacing = 8.dp
+            verticalAxisPosition = Axis.Position.Vertical.End
         ),
         rememberLineCartesianLayer(
             lineProvider = LineCartesianLayer.LineProvider.series(
                 LineCartesianLayer.Line(
-                    LineCartesianLayer.LineFill.single(fill(Color(lineColor)))
+                    LineCartesianLayer.LineFill.single(fill(Color(oneRmLineColor)))
                 )
             ),
             rangeProvider = CartesianLayerRangeProvider.auto(),
             verticalAxisPosition = Axis.Position.Vertical.Start
         ),
         startAxis = VerticalAxis.rememberStart(
-            title = "1 RM",
+            title = "1 RM (kg)",
             titleComponent = axisTitleComponent,
             label = rememberTextComponent(color = textColor)
         ),
         endAxis = VerticalAxis.rememberEnd(
-            title = "Volume",
+            title = "Volume (kg)",
             titleComponent = axisTitleComponent,
             label = rememberTextComponent(color = textColor)
         ),
@@ -266,10 +265,10 @@ fun ExerciseHistoryPlot(
                         add(
                             LegendItem(
                                 icon = shapeComponent(
-                                    fill = fill(if (index == 0) Color(barColor) else Color(lineColor)),
+                                    fill = fill(if (index == 0) Color(volumeLineColor) else Color(oneRmLineColor)),
                                     shape = CorneredShape.Pill
                                 ),
-                                labelComponent = textComponent,
+                                labelComponent = legendComponent,
                                 label = labelText
                             )
                         )
@@ -291,7 +290,7 @@ fun ExerciseHistoryPlot(
                 chart = chart,
                 modelProducer = modelProducer,
                 zoomState = chartZoomState,
-                modifier = modifier
+                modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
             )
