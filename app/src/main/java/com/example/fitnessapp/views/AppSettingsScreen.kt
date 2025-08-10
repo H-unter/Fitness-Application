@@ -19,9 +19,9 @@ import com.example.fitnessapp.R
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import com.example.fitnessapp.viewmodel.AppSettingsViewModel
-import org.koin.androidx.compose.koinViewModel as koinViewModelAlias
 import com.example.fitnessapp.viewmodel.WorkoutHistoryViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.fitnessapp.ui.theme.FitnessappTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,12 +34,13 @@ fun AppSettingsScreen(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val viewModel: AppSettingsViewModel = koinViewModel()
-    val workoutHistoryViewModel: WorkoutHistoryViewModel = koinViewModelAlias()
+    val workoutHistoryViewModel: WorkoutHistoryViewModel = koinViewModel()
     val coroutineScope = rememberCoroutineScope()
     val unlinking by viewModel.revoking.collectAsState()
     val workoutHistoryUiState by workoutHistoryViewModel.uiState.collectAsStateWithLifecycle()
     var showManualRevokeDialog by remember { mutableStateOf(false) }
 
+    // Main content
     AppSettingsScreenContent(
         isDarkMode = isDarkMode,
         onDarkModeToggle = onDarkModeToggle,
@@ -51,12 +52,8 @@ fun AppSettingsScreen(
             if (!unlinking) {
                 coroutineScope.launch {
                     viewModel.revokeAllHealthConnectPermissions(
-                        onPermissionsRevoked = {
-                            onPermissionsRevoked?.invoke()
-                        },
-                        onManualRevokeRequired = {
-                            showManualRevokeDialog = true
-                        }
+                        onPermissionsRevoked = { onPermissionsRevoked?.invoke() },
+                        onManualRevokeRequired = { showManualRevokeDialog = true }
                     )
                 }
             }
@@ -67,9 +64,7 @@ fun AppSettingsScreen(
             }
             context.startActivity(intent)
         },
-        onViewHealthConnectDataClick = {
-            workoutHistoryViewModel.readAllHealthConnectData()
-        },
+        onViewHealthConnectDataClick = { workoutHistoryViewModel.readAllHealthConnectData() },
         workoutHistoryUiState = workoutHistoryUiState,
         workoutHistoryViewModel = workoutHistoryViewModel,
         context = context,
@@ -122,11 +117,11 @@ fun AppSettingsScreenContent(
                 .padding(padding),
             verticalArrangement = Arrangement.Top
         ) {
+            // App Preferences Section
             SettingsSectionDivider(
                 text = stringResource(R.string.settings_section_app_preferences),
                 modifier = Modifier.padding(bottom = 8.dp)
             )
-
             Row(
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
@@ -138,11 +133,11 @@ fun AppSettingsScreenContent(
                 )
             }
 
+            // App Info Section
             SettingsSectionDivider(
                 text = stringResource(R.string.settings_section_app_info),
                 modifier = Modifier.padding(bottom = 8.dp)
             )
-
             Row(
                 modifier = Modifier
                     .clickable { onAppInfoClick() }
@@ -162,11 +157,11 @@ fun AppSettingsScreenContent(
                 )
             }
 
+            // Health Connect Section
             SettingsSectionDivider(
                 text = stringResource(R.string.settings_section_app_health_connect),
                 modifier = Modifier.padding(bottom = 8.dp)
             )
-
             Text(
                 text = if (permissionsGranted)
                     stringResource(R.string.health_connect_permissions_granted)
@@ -179,7 +174,6 @@ fun AppSettingsScreenContent(
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
-
             Button(
                 onClick = onUnlinkClick,
                 enabled = permissionsGranted && !unlinking,
@@ -192,9 +186,7 @@ fun AppSettingsScreenContent(
                         stringResource(R.string.unlink_health_connect)
                 )
             }
-
             Spacer(modifier = Modifier.height(16.dp))
-
             Button(
                 onClick = onViewHealthConnectDataClick,
                 enabled = permissionsGranted,
@@ -204,6 +196,7 @@ fun AppSettingsScreenContent(
             }
         }
 
+        // Health Connect Data Dialog
         if (workoutHistoryUiState.showHealthConnectDialog && workoutHistoryViewModel != null) {
             HealthConnectDataDialog(
                 sessions = workoutHistoryUiState.healthConnectSessions ?: emptyList(),
@@ -211,6 +204,7 @@ fun AppSettingsScreenContent(
             )
         }
 
+        // Manual Revoke Dialog
         if (showManualRevokeDialog) {
             AlertDialog(
                 onDismissRequest = { setShowManualRevokeDialog(false) },
@@ -250,46 +244,38 @@ fun SettingsSectionDivider(
     )
 }
 
+// Previews
+@Composable
+fun SettingsScreenPreview() {
+    AppSettingsScreenContent(
+        isDarkMode = true,
+        onDarkModeToggle = {},
+        permissionsGranted = true,
+        unlinking = false,
+        showManualRevokeDialog = false,
+        setShowManualRevokeDialog = {},
+        onUnlinkClick = {},
+        onAppInfoClick = {},
+        onViewHealthConnectDataClick = {},
+        workoutHistoryUiState = WorkoutHistoryUIState(),
+        workoutHistoryViewModel = null,
+        context = android.app.Application(),
+        navController = null
+    )
+}
+
 @Preview(name = "Settings Screen - Light Mode", showBackground = true)
 @Composable
 fun SettingsScreenPreview_Light() {
-    com.example.fitnessapp.ui.theme.FitnessappTheme(darkTheme = false) {
-        AppSettingsScreenContent(
-            isDarkMode = false,
-            onDarkModeToggle = {},
-            permissionsGranted = true,
-            unlinking = false,
-            showManualRevokeDialog = false,
-            setShowManualRevokeDialog = {},
-            onUnlinkClick = {},
-            onAppInfoClick = {},
-            onViewHealthConnectDataClick = {},
-            workoutHistoryUiState = com.example.fitnessapp.views.WorkoutHistoryUIState(),
-            workoutHistoryViewModel = null,
-            context = android.app.Application(),
-            navController = null
-        )
+    FitnessappTheme(darkTheme = false) {
+        SettingsScreenPreview()
     }
 }
 
 @Preview(name = "Settings Screen - Dark Mode", showBackground = true)
 @Composable
 fun SettingsScreenPreview_Dark() {
-    com.example.fitnessapp.ui.theme.FitnessappTheme(darkTheme = true) {
-        AppSettingsScreenContent(
-            isDarkMode = true,
-            onDarkModeToggle = {},
-            permissionsGranted = true,
-            unlinking = false,
-            showManualRevokeDialog = false,
-            setShowManualRevokeDialog = {},
-            onUnlinkClick = {},
-            onAppInfoClick = {},
-            onViewHealthConnectDataClick = {},
-            workoutHistoryUiState = com.example.fitnessapp.views.WorkoutHistoryUIState(),
-            workoutHistoryViewModel = null,
-            context = android.app.Application(),
-            navController = null
-        )
+    FitnessappTheme(darkTheme = true) {
+        SettingsScreenPreview()
     }
 }

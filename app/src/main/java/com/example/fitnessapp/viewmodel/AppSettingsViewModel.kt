@@ -18,7 +18,10 @@ class AppSettingsViewModel(
     private val _revoking = MutableStateFlow(false)
     val revoking: StateFlow<Boolean> = _revoking
 
-    // This function was never fully realised, and would require comprehensive testing on a logged in device, meaning an emulator is not suitable.
+    /**
+     * Attempts to revoke all Health Connect permissions.
+     * Calls onPermissionsRevoked if successful, or onManualRevokeRequired if manual action is needed.
+     */
     fun revokeAllHealthConnectPermissions(
         onPermissionsRevoked: (() -> Unit)? = null,
         onManualRevokeRequired: (() -> Unit)? = null
@@ -60,6 +63,9 @@ class AppSettingsViewModel(
     }
 }
 
+/**
+ * Handles theme preference storage and retrieval.
+ */
 class ThemePreference(context: Context) {
     private val preferences: SharedPreferences =
         context.getSharedPreferences("theme_prefs", Context.MODE_PRIVATE)
