@@ -1,11 +1,13 @@
 package com.example.fitnessapp.viewmodel
 
+import android.annotation.SuppressLint
 import android.util.Log
 import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.fitnessapp.data.HealthConnectAvailability
 import com.example.fitnessapp.data.HealthConnectManager
+import com.example.fitnessapp.data.WeightUnit
 import com.example.fitnessapp.data.room.WorkoutDao
 import com.example.fitnessapp.data.room.toDomain
 import com.example.fitnessapp.views.HealthConnectSession
@@ -29,6 +31,9 @@ class WorkoutHistoryViewModel(
 
     companion object {
         private const val TAG = "WorkoutHistoryVM"
+        @SuppressLint("ConstantLocale")
+        private val dateFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+        private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
     }
     val requestPermissionActivityContract = PermissionController.createRequestPermissionResultContract()
 
@@ -76,19 +81,27 @@ class WorkoutHistoryViewModel(
                 // Continue with existing workout history loading
                 val historyItems = workouts.map { workout ->
                     val workoutWithGroups = workoutDao.getWorkoutWithSetGroupsAndEntries(workout.workoutId).first()
-                    val setGroups = workoutWithGroups.setGroups.map { it.toDomain() }
+                    val setGroups = workoutWithGroups.setGroups.map { setGroupWithEntries ->
+                        // Convert weights based on unit type
+                        val convertedEntries = setGroupWithEntries.entries.map { entry ->
+                            val weight = entry.weight?.toString() ?: ""
+                            val convertedWeight = when (setGroupWithEntries.group.weightUnit) {
+                                WeightUnit.KG -> weight
+                                WeightUnit.LB -> {
+                                    // Convert lbs to kg (1 lb = 0.453592 kg)
+                                    weight.toFloatOrNull()?.let { it * 0.453592f }?.toString() ?: weight
+                                }
+                                WeightUnit.UNIT -> weight // Treat units as equivalent to kg
+                            }
+                            entry.copy(weight = convertedWeight.toFloatOrNull())
+                        }
+                        setGroupWithEntries.copy(entries = convertedEntries).toDomain()
+                    }
 
-                    // format dates
-                    val dateFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
-                    val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
-                    val date = dateFormat.format(Date(workout.startTime))
-                    val startTime = timeFormat.format(Date(workout.startTime))
-
-                    // Create the WorkoutHistoryItem
                     WorkoutHistoryItem(
                         id = workout.workoutId.toLong(),
-                        date = date,
-                        startTime = startTime,
+                        date = dateFormat.format(Date(workout.startTime)),
+                        startTime = timeFormat.format(Date(workout.startTime)),
                         duration = calculateDuration(workout.startTime, workout.endTime),
                         setGroups = setGroups,
                         gymName = workoutWithGroups.gym?.name,

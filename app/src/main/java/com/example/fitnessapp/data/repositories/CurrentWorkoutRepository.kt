@@ -1,5 +1,6 @@
 package com.example.fitnessapp.data.repositories
 import com.example.fitnessapp.data.SetGroup
+import com.example.fitnessapp.data.WeightUnit
 import com.example.fitnessapp.data.Workout
 import com.example.fitnessapp.data.room.WorkoutEntity
 import kotlinx.coroutines.flow.Flow
@@ -27,6 +28,7 @@ interface CurrentWorkoutRepository {
     suspend fun updateSetReps(exerciseIndex: Int, setIndex: Int, reps: String)
 
     suspend fun updateSetCompletion(exerciseIndex: Int, setIndex: Int, completed: Boolean)
+    suspend fun updateSetGroupWeightUnit(exerciseIndex: Int, weightUnit: WeightUnit)
 
 
     suspend fun cancelCurrentWorkout()

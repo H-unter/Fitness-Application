@@ -20,8 +20,8 @@ interface SetGroupDao {
     suspend fun deleteSetGroupById(groupId: Int)
 
     // update an existing set‐group by modifying its SetItems list
-    @Update(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun updateSetGroup(group: SetGroupEntity)
+    @Update
+    suspend fun updateSetGroup(setGroup: SetGroupEntity)
 
     // return all historical set groups that match a particular exercise id
     @Transaction

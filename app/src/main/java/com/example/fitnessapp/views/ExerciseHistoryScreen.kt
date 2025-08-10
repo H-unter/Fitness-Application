@@ -320,17 +320,30 @@ fun HistoricalExerciseCard(
     isInProgress: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val parsedSets: List<Pair<Float, Int>> = sets.mapNotNull { (w, r) ->
-        val weight = w.toFloatOrNull()
-        val reps   = r.toIntOrNull()
-        if (weight != null && reps != null) weight to reps else null
+    // Parse weights like "225 lbs (102.1 kg)" or "60 kg"
+    val parsedSets: List<Triple<Float, Int, String>> = sets.mapNotNull { (w, r) ->
+        val regex = Regex("""([\d.]+)\s*(kg|lbs|units)(?:\s*\(([\d.]+)\s*kg\))?""")
+        val match = regex.find(w)
+        val originalWeight = match?.groups?.get(1)?.value
+        val originalUnit = match?.groups?.get(2)?.value
+        val kgValue = match?.groups?.get(3)?.value
+        val reps = r.toIntOrNull()
+        if (originalWeight != null && originalUnit != null && reps != null) {
+            val weightKg = kgValue?.toFloatOrNull() ?: originalWeight.toFloatOrNull() ?: 0f
+            val displayUnit = if (kgValue != null && originalUnit != "kg") {
+                "$originalWeight $originalUnit (${kgValue} kg)"
+            } else {
+                "$originalWeight $originalUnit"
+            }
+            Triple(weightKg, reps, displayUnit)
+        } else null
     }
 
     val highest1RM = parsedSets
-        .maxOfOrNull { (w, reps) -> w * (1 + 0.0333f * reps) }
+        .maxOfOrNull { (w, reps, _) -> w * (1 + 0.0333f * reps) }
         ?: 0f
 
-    val totalVolume = parsedSets.sumOf { (w, reps) -> (w * reps).toInt() }
+    val totalVolume = parsedSets.sumOf { (w, reps, _) -> (w * reps).toInt() }
 
     Surface(
         modifier = modifier
@@ -363,13 +376,13 @@ fun HistoricalExerciseCard(
             )
             Spacer(modifier = Modifier.height(4.dp))
 
-            parsedSets.forEachIndexed { index, (weight, reps) ->
-                val volume = (weight * reps).toInt()
-                val oneRM  = weight * (1 + 0.0333f * reps)
+            parsedSets.forEachIndexed { index, (weightKg, reps, displayUnit) ->
+                val volume = (weightKg * reps).toInt()
+                val oneRM  = weightKg * (1 + 0.0333f * reps)
                 HistoricalSetRow(
                     setNumber = index + 1,
                     reps      = reps,
-                    weight    = weight,
+                    weightDisplay = displayUnit,
                     volume    = volume,
                     oneRepMax = oneRM,
                     isMax     = oneRM == highest1RM
@@ -389,7 +402,7 @@ fun HistoricalExerciseCard(
 fun HistoricalSetRow(
     setNumber: Int,
     reps: Int,
-    weight: Float,
+    weightDisplay: String,
     volume: Int,
     oneRepMax: Float,
     isMax: Boolean,
@@ -402,7 +415,7 @@ fun HistoricalSetRow(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
-            text  = stringResource(R.string.set_row_label, setNumber, reps, weight.toInt()),
+            text  = stringResource(R.string.set_row_label, setNumber, reps, weightDisplay),
             style = MaterialTheme.typography.bodyMedium
         )
         Text(

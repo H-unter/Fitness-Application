@@ -225,4 +225,8 @@ class CurrentWorkoutViewModel(
         validateWorkout()
     }
 
+    fun updateSetGroupWeightUnit(exerciseIndex: Int, weightUnit: WeightUnit) = viewModelScope.launch {
+        workoutRepository.updateSetGroupWeightUnit(exerciseIndex, weightUnit)
+    }
+
 }

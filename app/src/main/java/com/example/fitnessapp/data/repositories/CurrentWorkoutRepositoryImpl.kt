@@ -4,6 +4,7 @@ import com.example.fitnessapp.data.room.ExerciseDao
 import com.example.fitnessapp.data.room.SetEntryDao
 import com.example.fitnessapp.data.room.SetEntryEntity
 import com.example.fitnessapp.data.SetGroup
+import com.example.fitnessapp.data.WeightUnit
 import com.example.fitnessapp.data.room.SetGroupDao
 import com.example.fitnessapp.data.room.SetGroupEntity
 import com.example.fitnessapp.data.Workout
@@ -198,6 +199,16 @@ class CurrentWorkoutRepositoryImpl(
             setGroupDao.deleteSetGroupsByWorkoutId(workout.workoutId)
             workoutDao.deleteWorkoutById(workout.workoutId)
             _currentWorkout.value = null
+        }
+    }
+
+    override suspend fun updateSetGroupWeightUnit(exerciseIndex: Int, weightUnit: WeightUnit) {
+        withContext(dispatcher) {
+            val currentWorkout = _currentWorkout.value ?: return@withContext
+            val workoutWithGroups = workoutDao.getWorkoutWithSetGroupsAndEntries(currentWorkout.workoutId).first()
+            val targetSetGroup = workoutWithGroups.setGroups.getOrNull(exerciseIndex)?.group ?: return@withContext
+
+            setGroupDao.updateSetGroup(targetSetGroup.copy(weightUnit = weightUnit))
         }
     }
 }

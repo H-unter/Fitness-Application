@@ -54,25 +54,43 @@ class ExerciseHistoryViewModel(
 
                     timestamps.add(workoutTime.toDouble())
 
+                    fun convertToKg(weight: String, unit: com.example.fitnessapp.data.WeightUnit): Double {
+                        val w = weight.toDoubleOrNull() ?: 0.0
+                        return when (unit) {
+                            com.example.fitnessapp.data.WeightUnit.KG, com.example.fitnessapp.data.WeightUnit.UNIT -> w
+                            com.example.fitnessapp.data.WeightUnit.LB -> w * 0.453592
+                        }
+                    }
+
                     val volume = setGroup.entries.sumOf { entry ->
-                        val weight = entry.weight.toDoubleOrNull() ?: 0.0
+                        val weightKg = convertToKg(entry.weight, setGroup.weightUnit)
                         val reps = entry.reps.toDoubleOrNull() ?: 0.0
-                        weight * reps
+                        weightKg * reps
                     }
                     volumeSeries.add(volume)
 
                     val oneRepMax = setGroup.entries.maxOfOrNull { entry ->
-                        val weight = entry.weight.toDoubleOrNull() ?: 0.0
+                        val weightKg = convertToKg(entry.weight, setGroup.weightUnit)
                         val reps = entry.reps.toDoubleOrNull() ?: 0.0
-                        weight * (1 + reps / 30.0)
+                        weightKg * (1 + reps / 30.0)
                     } ?: 0.0
                     oneRepMaxSeries.add(oneRepMax)
+
+                    // For display, show both units if conversion was made
+                    val displaySets = setGroup.entries.map { entry ->
+                        val weightKg = convertToKg(entry.weight, setGroup.weightUnit)
+                        when (setGroup.weightUnit) {
+                            com.example.fitnessapp.data.WeightUnit.KG -> "%.1f kg".format(weightKg) to entry.reps
+                            com.example.fitnessapp.data.WeightUnit.LB -> "%s lbs (%.1f kg)".format(entry.weight, weightKg) to entry.reps
+                            com.example.fitnessapp.data.WeightUnit.UNIT -> "%s units (%.1f kg)".format(entry.weight, weightKg) to entry.reps
+                        }
+                    }
 
                     historyItems.add(
                         SetGroupDisplayData(
                             timestamp = formatter.format(java.time.Instant.ofEpochMilli(workoutTime)),
                             gymName = gymName,
-                            sets = setGroup.entries.map { it.weight to it.reps },
+                            sets = displaySets,
                             isInProgress = isInProgress
                         )
                     )

@@ -116,6 +116,7 @@ fun CurrentWorkoutScreen(
         onGymSelected = viewModel::selectGym,
         onCreateGym = viewModel::createNewGym,
         onToggleSetCompletion = viewModel::toggleSetCompletion,
+        onWeightUnitChange = viewModel::updateSetGroupWeightUnit,
         modifier = modifier
     )
 }
@@ -177,6 +178,7 @@ fun CurrentWorkoutScreenContent(
     onGymSelected: (Int) -> Unit,
     onCreateGym: (String) -> Unit,
     onToggleSetCompletion: (Int, Int, Boolean) -> Unit,
+    onWeightUnitChange: (Int, WeightUnit) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -207,6 +209,7 @@ fun CurrentWorkoutScreenContent(
             onRemoveExercise = onRemoveExercise,
             onNavigateToStats = onNavigateToStats,
             onToggleSetCompletion = onToggleSetCompletion,
+            onWeightUnitChange = onWeightUnitChange,
             modifier = modifier.padding(paddingValues)
         )
     }
@@ -224,6 +227,7 @@ fun CurrentWorkout(
     onRemoveExercise: (exerciseIndex: Int) -> Unit,
     onNavigateToStats: (Long) -> Unit,
     onToggleSetCompletion: (exerciseIndex: Int, setIndex: Int, completed: Boolean) -> Unit,
+    onWeightUnitChange: (exerciseIndex: Int, WeightUnit) -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -248,10 +252,16 @@ fun CurrentWorkout(
                 onAddSet = { onAddSetToExercise(exerciseIndex) },
                 onRemoveSet = { setIndex -> onRemoveSetFromExercise(exerciseIndex, setIndex) },
                 onNavigateToStats = { onNavigateToStats(exerciseId) },
-                onRemoveExercise = {onRemoveExercise(exerciseIndex)},
+                onRemoveExercise = { onRemoveExercise(exerciseIndex) },
                 onToggleCompletion = { setIndex, completed ->
                     onToggleSetCompletion(exerciseIndex, setIndex, completed)
-                }
+                },
+                selectedWeightUnit = when(setGroup.weightUnit) {
+                    WeightUnit.KG -> stringResource(R.string.unit_kgs)
+                    WeightUnit.LB -> stringResource(R.string.unit_lbs)
+                    WeightUnit.UNIT -> stringResource(R.string.unit_units)
+                },
+                onWeightUnitChange = { newUnit -> onWeightUnitChange(exerciseIndex, newUnit) }
             )
         }
 
@@ -284,9 +294,16 @@ fun SetGroupCard(
     onNavigateToStats: () -> Unit,
     onRemoveExercise: (index: Int) -> Unit,
     onToggleCompletion: (Int, Boolean) -> Unit,
+    selectedWeightUnit: String,
+    onWeightUnitChange: (WeightUnit) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var selectedWeightUnit by remember { mutableStateOf("Kg") }
+    val unitStringToEnum = mapOf(
+        stringResource(R.string.unit_kgs) to WeightUnit.KG,
+        stringResource(R.string.unit_lbs) to WeightUnit.LB,
+        stringResource(R.string.unit_units) to WeightUnit.UNIT
+    )
+
     Surface(
         modifier = modifier
             .fillMaxWidth()
@@ -316,7 +333,10 @@ fun SetGroupCard(
 
                 UnitSelectorDropdown(
                     selectedUnit = selectedWeightUnit,
-                    onUnitSelected = { selectedWeightUnit = it },
+                    onUnitSelected = { newUnit ->
+                        val weightUnit = unitStringToEnum[newUnit] ?: WeightUnit.KG
+                        onWeightUnitChange(weightUnit)
+                    },
                     modifier = Modifier
                         .weight(30f)
                         .height(32.dp)
@@ -871,7 +891,6 @@ fun Preview_CurrentWorkoutScreenContent() {
             validationState = WorkoutValidationState.NoGymSelected
         )
 
-        // Use MockNavController instead of casting
         val mockNavController = rememberNavController()
 
         CurrentWorkoutScreenContent(
@@ -889,6 +908,7 @@ fun Preview_CurrentWorkoutScreenContent() {
             onCreateGym = {},
             onToggleSetCompletion = { _, _, _ -> },
             onCancelWorkout = {},
+            onWeightUnitChange = { _, _ -> },
             modifier = Modifier
         )
     }
