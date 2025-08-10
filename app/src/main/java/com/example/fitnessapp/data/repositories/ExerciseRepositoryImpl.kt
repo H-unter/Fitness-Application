@@ -54,6 +54,9 @@ class ExerciseRepositoryImpl(
         setGroupDao
             .getWorkoutStartTimeForSetGroup(setGroupId.toInt())
 
+    override suspend fun getGymNameForSetGroup(setGroupId: Long): String? =
+        setGroupDao.getGymNameForSetGroup(setGroupId.toInt())
+
     override suspend fun getExerciseNameById(exerciseId: Long): String {
         return exerciseDao.getExerciseById(exerciseId.toInt())?.name ?: ""
     }

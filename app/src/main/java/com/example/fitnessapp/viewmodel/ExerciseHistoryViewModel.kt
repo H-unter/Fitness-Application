@@ -1,125 +1,84 @@
 package com.example.fitnessapp.viewmodel
 
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.fitnessapp.data.repositories.ExerciseRepository
-import com.example.fitnessapp.data.SetGroup
 import com.example.fitnessapp.views.ExerciseHistoryUIState
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.*
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 data class SetGroupDisplayData(
     val timestamp: String,
+    val gymName: String,
     val sets: List<Pair<String, String>>
 )
 
-@RequiresApi(Build.VERSION_CODES.O)
 class ExerciseHistoryViewModel(
     private val exerciseRepository: ExerciseRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
-    private val exerciseId: Long =
-        savedStateHandle["exerciseId"] ?: error("No exerciseId in nav args")
+    private val exerciseId: Long = savedStateHandle["exerciseId"] ?: error("No exerciseId in nav args")
 
-    // raw flow of SetGroups from the repository
-    private val setGroups: StateFlow<List<SetGroup>> =
-        exerciseRepository
-            .getExerciseActivityById(exerciseId = exerciseId, excludeCurrentWorkout = true)
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    // one-shot flow for the exercise name
-    private val exerciseNameFlow: Flow<String> = flow {
-        emit(exerciseRepository.getExerciseNameById(exerciseId))
-    }
-
-    // formatter for history timestamps
     private val formatter = DateTimeFormatter
         .ofPattern("dd MMM yyyy, HH:mm")
         .withZone(ZoneId.systemDefault())
 
-    // x-axis values: epoch milliseconds as Doubles
-    @OptIn(ExperimentalCoroutinesApi::class)
-    private val timestamps: StateFlow<List<Double>> = setGroups
-        .flatMapLatest { groups ->
-            if (groups.isEmpty()) {
-                flowOf(emptyList())
-            } else {
-                combine(groups.map { sg ->
-                    exerciseRepository.getWorkoutStartTimeForSetGroup(sg.setGroupId.toLong())
-                }) { epochs -> epochs.map(Long::toDouble) }
-            }
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val uiState: StateFlow<ExerciseHistoryUIState> =
+        exerciseRepository.getExerciseActivityById(exerciseId, excludeCurrentWorkout = true)
+            .map { setGroups ->
+                val exerciseName = exerciseRepository.getExerciseNameById(exerciseId)
 
-    // total volume per group
-    private val volumeSeries: StateFlow<List<Double>> = setGroups
-        .map { groups ->
-            groups.map { sg ->
-                sg.entries.sumOf { entry ->
-                    val weight = entry.weight.toDoubleOrNull() ?: 0.0
-                    val reps = entry.reps.toDoubleOrNull() ?: 0.0
-                    weight * reps
+                val timestamps = mutableListOf<Double>()
+                val volumeSeries = mutableListOf<Double>()
+                val oneRepMaxSeries = mutableListOf<Double>()
+                val historyItems = mutableListOf<SetGroupDisplayData>()
+
+                setGroups.forEach { setGroup ->
+                    val workoutTimeDeferred = viewModelScope.async {
+                        exerciseRepository.getWorkoutStartTimeForSetGroup(setGroup.setGroupId.toLong()).first()
+                    }
+                    val gymNameDeferred = viewModelScope.async {
+                        exerciseRepository.getGymNameForSetGroup(setGroup.setGroupId.toLong()) ?: "Unknown Gym"
+                    }
+
+                    val workoutTime = workoutTimeDeferred.await()
+                    val gymName = gymNameDeferred.await()
+
+                    timestamps.add(workoutTime.toDouble())
+
+                    val volume = setGroup.entries.sumOf { entry ->
+                        val weight = entry.weight.toDoubleOrNull() ?: 0.0
+                        val reps = entry.reps.toDoubleOrNull() ?: 0.0
+                        weight * reps
+                    }
+                    volumeSeries.add(volume)
+
+                    val oneRepMax = setGroup.entries.maxOfOrNull { entry ->
+                        val weight = entry.weight.toDoubleOrNull() ?: 0.0
+                        val reps = entry.reps.toDoubleOrNull() ?: 0.0
+                        weight * (1 + reps / 30.0)
+                    } ?: 0.0
+                    oneRepMaxSeries.add(oneRepMax)
+
+                    historyItems.add(
+                        SetGroupDisplayData(
+                            timestamp = formatter.format(java.time.Instant.ofEpochMilli(workoutTime)),
+                            gymName = gymName,
+                            sets = setGroup.entries.map { it.weight to it.reps }
+                        )
+                    )
                 }
-            }
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    // estimated 1RM per group
-    private val oneRepMaxSeries: StateFlow<List<Double>> = setGroups
-        .map { groups ->
-            groups.map { sg ->
-                sg.entries.maxOfOrNull { entry ->
-                    val w = entry.weight.toDoubleOrNull() ?: 0.0
-                    val r = entry.reps.toDoubleOrNull() ?: 0.0
-                    w * (1 + r / 30.0)
-                } ?: 0.0
+                ExerciseHistoryUIState(
+                    exerciseName = exerciseName,
+                    xValues = timestamps,
+                    volumeSeries = volumeSeries,
+                    oneRepMaxSeries = oneRepMaxSeries,
+                    historyItems = historyItems
+                )
             }
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    // rows for the history list
-    @OptIn(ExperimentalCoroutinesApi::class)
-    private val historyItems: StateFlow<List<SetGroupDisplayData>> = setGroups
-        .flatMapLatest { groups ->
-            if (groups.isEmpty()) {
-                flowOf(emptyList())
-            } else {
-                combine(groups.map { sg ->
-                    // format each group's date
-                    exerciseRepository
-                        .getWorkoutStartTimeForSetGroup(sg.setGroupId.toLong())
-                        .map { epoch -> formatter.format(java.time.Instant.ofEpochMilli(epoch)) }
-                        .map { formatted ->
-                            SetGroupDisplayData(
-                                timestamp = formatted,
-                                sets      = sg.entries.map { it.weight to it.reps }
-                            )
-                        }
-                }) { items -> items.toList() }
-            }
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    // single UI state combining everything the view needs
-    val uiState: StateFlow<ExerciseHistoryUIState> = combine(
-        exerciseNameFlow,
-        timestamps,
-        volumeSeries,
-        oneRepMaxSeries,
-        historyItems
-    ) { name, xs, vols, oneRm, history ->
-        ExerciseHistoryUIState(
-            exerciseName    = name,
-            xValues         = xs,
-            volumeSeries    = vols,
-            oneRepMaxSeries = oneRm,
-            historyItems    = history
-        )
-    }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ExerciseHistoryUIState())
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ExerciseHistoryUIState())
 }

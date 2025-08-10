@@ -45,6 +45,18 @@ interface SetGroupDao {
   """)
     fun getWorkoutStartTimeForSetGroup(setGroupId: Int): Flow<Long>
 
+    @Query("""
+    SELECT gym.name
+      FROM Gym AS gym
+      JOIN Workout AS workout
+        ON gym.gymId = workout.gymId
+      JOIN SetGroup AS setGroup
+        ON workout.workoutId = setGroup.workoutId
+     WHERE setGroup.setGroupId = :setGroupId
+     LIMIT 1
+  """)
+    suspend fun getGymNameForSetGroup(setGroupId: Int): String?
+
     // Delete all set groups for a given workout
     @Query("DELETE FROM SetGroup WHERE workoutId = :workoutId")
     suspend fun deleteSetGroupsByWorkoutId(workoutId: Int)

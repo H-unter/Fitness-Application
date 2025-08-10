@@ -72,6 +72,8 @@ import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
 import com.patrykandpatrick.vico.core.common.LegendItem
 import com.patrykandpatrick.vico.core.common.data.ExtraStore
 import com.patrykandpatrick.vico.core.common.shape.CorneredShape
+import com.patrykandpatrick.vico.compose.common.ProvideVicoTheme
+import com.patrykandpatrick.vico.compose.m3.common.rememberM3VicoTheme
 import org.koin.androidx.compose.koinViewModel
 import java.time.Instant
 import java.time.ZoneId
@@ -80,7 +82,6 @@ import java.time.format.DateTimeFormatter
 import java.time.Duration
 
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ExerciseHistoryScreen(
     navController: NavHostController,
@@ -96,7 +97,6 @@ fun ExerciseHistoryScreen(
     )
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ExerciseHistoryScreenContent(
     uiState: ExerciseHistoryUIState,
@@ -104,8 +104,7 @@ fun ExerciseHistoryScreenContent(
     modifier: Modifier = Modifier
 ) {
     Scaffold(
-        topBar    = { ExerciseHistoryTopAppBar(uiState.exerciseName, onBack) },
-        bottomBar = { BottomNavigationBar() }
+        topBar = { ExerciseHistoryTopAppBar(uiState.exerciseName, onBack) }
     ) { padding ->
         Column(
             modifier = modifier
@@ -134,6 +133,7 @@ fun ExerciseHistoryScreenContent(
                 itemsIndexed(uiState.historyItems) { _, item ->
                     HistoricalExerciseCard(
                         date = item.timestamp,
+                        gymName = item.gymName,
                         sets = item.sets
                     )
                 }
@@ -178,7 +178,6 @@ fun ExerciseHistoryTopAppBar(
 
 private val historyLegendKey = ExtraStore.Key<List<String>>()
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ExerciseHistoryPlot(
     timestamps: List<Double>,
@@ -195,8 +194,8 @@ fun ExerciseHistoryPlot(
 
     val barColor   = MaterialTheme.colorScheme.primary.toArgb()
     val lineColor  = MaterialTheme.colorScheme.secondary.toArgb()
-    val textComponent = rememberTextComponent(color = MaterialTheme.colorScheme.onSurface)
     val modelProducer = remember { CartesianChartModelProducer() }
+    val vicoTheme = rememberM3VicoTheme()
 
     LaunchedEffect(timestamps, volumeValues, oneRepMaxValues) {
         modelProducer.runTransaction {
@@ -216,9 +215,9 @@ fun ExerciseHistoryPlot(
         xAxisFormatter.format(Instant.ofEpochMilli(x.toLong()))
     }
     val axisTitleComponent = rememberTextComponent(
-        color    = MaterialTheme.colorScheme.onSurface,
         textSize = MaterialTheme.typography.bodySmall.fontSize
     )
+    val textComponent = rememberTextComponent()
     val chartZoomState = rememberVicoZoomState(initialZoom = Zoom.Content)
     val oneDayStepMs = Duration.ofDays(1).toMillis().toDouble()
 
@@ -254,7 +253,7 @@ fun ExerciseHistoryPlot(
         bottomAxis = HorizontalAxis.rememberBottom(valueFormatter = xValueFormatter),
         legend     = rememberHorizontalLegend(
             items = { extraStore: ExtraStore ->
-                extraStore[historyLegendKey]?.let { labels ->
+                extraStore[historyLegendKey].let { labels ->
                     labels.forEachIndexed { index, labelText ->
                         add(
                             LegendItem(
@@ -279,20 +278,23 @@ fun ExerciseHistoryPlot(
         tonalElevation = 2.dp,
         color          = MaterialTheme.colorScheme.surfaceContainer
     ) {
-        CartesianChartHost(
-            chart         = chart,
-            modelProducer = modelProducer,
-            zoomState     = chartZoomState,
-            modifier      = Modifier
-                .fillMaxWidth()
-                .height(200.dp)
-        )
+        ProvideVicoTheme(theme = vicoTheme) {
+            CartesianChartHost(
+                chart         = chart,
+                modelProducer = modelProducer,
+                zoomState     = chartZoomState,
+                modifier      = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+            )
+        }
     }
 }
 
 @Composable
 fun HistoricalExerciseCard(
     date: String,
+    gymName: String,
     sets: List<Pair<String, String>>,
     modifier: Modifier = Modifier
 ) {
@@ -322,7 +324,7 @@ fun HistoricalExerciseCard(
                 .padding(12.dp)
         ) {
             Text(
-                text = stringResource(R.string.workout_on_date, date),
+                text = stringResource(R.string.gym_on_date, gymName, date),
                 style = MaterialTheme.typography.titleMedium
             )
             Spacer(modifier = Modifier.height(4.dp))
@@ -379,7 +381,6 @@ fun HistoricalSetRow(
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun Preview_ExerciseHistoryScreenContent() {
     FitnessappTheme {
@@ -387,8 +388,8 @@ fun Preview_ExerciseHistoryScreenContent() {
             uiState = ExerciseHistoryUIState(
                 exerciseName    = "Bench Press",
                 historyItems    = listOf(
-                    SetGroupDisplayData("Yesterday", listOf("50" to "8", "55" to "6")),
-                    SetGroupDisplayData("2 Days Ago", listOf("60" to "5", "62.5" to "5", "65" to "4"))
+                    SetGroupDisplayData("Yesterday", "Gold's Gym", listOf("50" to "8", "55" to "6")),
+                    SetGroupDisplayData("2 Days Ago", "Planet Fitness", listOf("60" to "5", "62.5" to "5", "65" to "4"))
                 ),
                 xValues         = listOf(1.0, 2.0),
                 volumeSeries    = listOf(200.0, 800.0),
@@ -401,7 +402,6 @@ fun Preview_ExerciseHistoryScreenContent() {
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Preview(
     name             = "Light Mode",
     uiMode           = Configuration.UI_MODE_NIGHT_NO,
@@ -412,7 +412,6 @@ fun Preview_ExerciseHistoryScreenContent_Light() {
     Preview_ExerciseHistoryScreenContent()
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Preview(
     name             = "Dark Mode",
     uiMode           = Configuration.UI_MODE_NIGHT_YES,

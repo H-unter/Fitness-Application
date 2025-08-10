@@ -9,4 +9,3 @@ interface WorkoutRepository {
     fun getWorkoutWithSetGroupsAndEntries(id: Int): Flow<WorkoutWithSetGroupsAndEntries>
     suspend fun updateHealthConnectSynced(workoutId: Int, synced: Boolean)
 }
-

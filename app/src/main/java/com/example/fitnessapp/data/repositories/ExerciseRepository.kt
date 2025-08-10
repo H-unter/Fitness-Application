@@ -22,6 +22,9 @@ interface ExerciseRepository {
     // return the workout that corresponds to a given setGroup
     fun getWorkoutStartTimeForSetGroup(setGroupId: Long): Flow<Long>
 
+    // return the gym name for a given setGroup
+    suspend fun getGymNameForSetGroup(setGroupId: Long): String?
+
     // update the name of an exercise given its id
     suspend fun updateExerciseName(exerciseId: Long, newName: String)
 }

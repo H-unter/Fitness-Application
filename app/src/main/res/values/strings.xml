@@ -37,6 +37,7 @@
     <!-- ExerciseHistoryScreen -->
     <string name="history_title">History: %1$s</string>
     <string name="workout_on_date">Workout – %1$s</string>
+    <string name="gym_on_date">%1$s – %2$s</string>
     <string name="total_volume">Total Volume = %1$d</string>
     <string name="set_row_label">%1$d: %2$d reps × %3$dkg</string>
     <string name="set_row_stats">Vol %1$d · 1RM %2$.1f</string>
@@ -88,7 +89,7 @@
     <string name="open_app_settings">Open app settings</string>
     <string name="unlink_health_connect">Unlink from Health Connect</string>
     <string name="app_info">App Info</string>
-    <string name="revoking_permissions">Revoking permissions...</string>
+    <string name="revoking_permissions">Revoking permissions…</string>
     <string name="edit_exercise">Edit Exercise</string>
     <string name="name_exists_error">Name already exists</string>
     <string name="edit_exercise_warning">This will change any historical instance of this exercise as well.</string>
