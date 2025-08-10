@@ -1,24 +1,26 @@
 package com.example.fitnessapp.di
 
 import androidx.room.Room
+import com.example.fitnessapp.data.HealthConnectManager
 import com.example.fitnessapp.data.repositories.CurrentWorkoutRepository
 import com.example.fitnessapp.data.repositories.CurrentWorkoutRepositoryImpl
-import com.example.fitnessapp.data.room.ExerciseDao
 import com.example.fitnessapp.data.repositories.ExerciseRepository
 import com.example.fitnessapp.data.repositories.ExerciseRepositoryImpl
-import com.example.fitnessapp.data.room.GymActivityDatabase
-import com.example.fitnessapp.data.room.GymDao
 import com.example.fitnessapp.data.repositories.GymRepository
 import com.example.fitnessapp.data.repositories.GymRepositoryImpl
-import com.example.fitnessapp.data.HealthConnectManager
+import com.example.fitnessapp.data.repositories.WorkoutRepository
+import com.example.fitnessapp.data.repositories.WorkoutRepositoryImpl
+import com.example.fitnessapp.data.room.ExerciseDao
+import com.example.fitnessapp.data.room.GymActivityDatabase
+import com.example.fitnessapp.data.room.GymDao
 import com.example.fitnessapp.data.room.SetEntryDao
 import com.example.fitnessapp.data.room.SetGroupDao
 import com.example.fitnessapp.data.room.WorkoutDao
+import com.example.fitnessapp.viewmodel.AppSettingsViewModel
 import com.example.fitnessapp.viewmodel.CurrentWorkoutViewModel
 import com.example.fitnessapp.viewmodel.ExerciseHistoryViewModel
 import com.example.fitnessapp.viewmodel.ExerciseListSelectionViewModel
 import com.example.fitnessapp.viewmodel.WorkoutHistoryViewModel
-import com.example.fitnessapp.viewmodel.AppSettingsViewModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -81,10 +83,16 @@ val appModule = module {
         )
     }
 
+    single<WorkoutRepository> {
+        WorkoutRepositoryImpl(
+            workoutDao = get()
+        )
+    }
+
     // view models
     viewModel { ExerciseListSelectionViewModel(exerciseRepository = get()) }
     viewModel { CurrentWorkoutViewModel(workoutRepository = get(), gymRepository = get(), exerciseRepository = get()) }
-    viewModel { WorkoutHistoryViewModel(healthConnectManager = get(), workoutRepository = get()) }
+    viewModel { WorkoutHistoryViewModel(workoutRepository = get(), healthConnectManager = get()) }
     viewModel { ExerciseHistoryViewModel(exerciseRepository = get(), savedStateHandle = get()) }
     viewModel { AppSettingsViewModel(healthConnectManager = get()) }
 }

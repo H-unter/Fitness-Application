@@ -18,6 +18,7 @@ class AppSettingsViewModel(
     private val _revoking = MutableStateFlow(false)
     val revoking: StateFlow<Boolean> = _revoking
 
+    // This function was never fully realised, and would require comprehensive testing on a logged in device, meaning an emulator is not suitable.
     fun revokeAllHealthConnectPermissions(
         onPermissionsRevoked: (() -> Unit)? = null,
         onManualRevokeRequired: (() -> Unit)? = null
@@ -34,14 +35,9 @@ class AppSettingsViewModel(
                         Log.d("AppSettingsViewModel", "No permissions to revoke")
                         return@launch
                     }
-
                     healthConnectManager.healthConnectClient.permissionController.revokeAllPermissions()
                     Log.d("AppSettingsViewModel", "Called revokeAllPermissions()")
-
-                    // Give the system some time to process the revocation
-                    kotlinx.coroutines.delay(1000) //TODO: have another look at this
-
-                    // Check if permissions were actually revoked
+                    kotlinx.coroutines.delay(1000)
                     val hasPermissionsAfter = healthConnectManager.hasAllPermissions()
                     Log.d("AppSettingsViewModel", "Has permissions after revoke (after delay): $hasPermissionsAfter")
 

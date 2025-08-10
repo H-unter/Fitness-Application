@@ -1,14 +1,24 @@
 package com.example.fitnessapp.navigation
 
-import androidx.compose.runtime.*
-import org.koin.androidx.compose.koinViewModel
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.navigation.NavType
-import androidx.navigation.compose.*
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.fitnessapp.viewmodel.ThemePreference
 import com.example.fitnessapp.viewmodel.WorkoutHistoryViewModel
-import com.example.fitnessapp.views.*
-import android.util.Log
+import com.example.fitnessapp.views.AppSettingsScreen
+import com.example.fitnessapp.views.CurrentWorkoutScreen
+import com.example.fitnessapp.views.ExerciseHistoryScreen
+import com.example.fitnessapp.views.ExerciseListSelectionScreen
+import com.example.fitnessapp.views.WorkoutHistoryScreen
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun AppNavigation(

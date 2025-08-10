@@ -876,7 +876,7 @@ fun Preview_CurrentWorkoutScreenContent() {
         val sampleUiState = CurrentWorkoutUIState(
             currentWorkout = Workout(
                 id = 1,
-                locationId = 1,
+                gymId = 1,
                 startTime = 0L,
                 endTime = 0L,
                 isInProgress = true,

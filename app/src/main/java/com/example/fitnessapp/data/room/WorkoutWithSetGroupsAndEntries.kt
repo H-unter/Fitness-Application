@@ -28,7 +28,7 @@ fun WorkoutWithSetGroupsAndEntries?.toDomain(): Workout? {
     if (this == null) return null
     return Workout(
         id = workout.workoutId,
-        locationId = workout.gymId ?: 0,
+        gymId = workout.gymId ?: 0,
         startTime = workout.startTime,
         endTime = workout.endTime,
         setGroups = setGroups.map { it.toDomain() },

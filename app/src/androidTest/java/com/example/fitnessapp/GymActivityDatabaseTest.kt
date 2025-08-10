@@ -18,7 +18,6 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -67,7 +66,7 @@ class GymActivityDatabaseTest {
 
         val workout = Workout(
             id = 0,
-            locationId = 123,
+            gymId = 123,
             startTime = Instant.now().toEpochMilli(),
             endTime = Instant.now().plusSeconds(3600).toEpochMilli(), // 1 hour later
             isInProgress = true,
@@ -81,7 +80,7 @@ class GymActivityDatabaseTest {
         // Insert workout entity first
         val workoutEntity = WorkoutEntity(
             workoutId = 0, // Auto-generated
-            gymId = workout.locationId,
+            gymId = workout.gymId,
             startTime = workout.startTime,
             endTime = workout.endTime,
             isInProgress = workout.isInProgress
@@ -116,7 +115,7 @@ class GymActivityDatabaseTest {
 
         // Verify workout details
         assertNotNull(retrievedWorkoutWithSetGroups)
-        assertEquals(workout.locationId, retrievedWorkoutWithSetGroups.workout.gymId)
+        assertEquals(workout.gymId, retrievedWorkoutWithSetGroups.workout.gymId)
         assertEquals(workout.startTime, retrievedWorkoutWithSetGroups.workout.startTime)
         assertEquals(workout.endTime, retrievedWorkoutWithSetGroups.workout.endTime)
         assertEquals(workout.isInProgress, retrievedWorkoutWithSetGroups.workout.isInProgress)

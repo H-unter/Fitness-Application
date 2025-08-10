@@ -1,6 +1,4 @@
 package com.example.fitnessapp
-import androidx.health.connect.client.permission.HealthPermission
-import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.testing.FakeHealthConnectClient
 import androidx.health.connect.client.testing.FakePermissionController
 import androidx.test.core.app.ApplicationProvider

@@ -36,7 +36,6 @@ class CurrentWorkoutViewModel(
     val uiState: StateFlow<CurrentWorkoutUIState> = _uiState.asStateFlow()
 
     init {
-        // observe current workout
         workoutRepository.getCurrentWorkoutOrNull()
             .onEach { workout ->
                 _uiState.value = _uiState.value.copy(currentWorkout = workout)
@@ -45,7 +44,6 @@ class CurrentWorkoutViewModel(
             }
             .launchIn(viewModelScope)
 
-        // observe set groups
         workoutRepository.getSetGroups()
             .onEach { groups ->
                 _uiState.value = _uiState.value.copy(
@@ -60,7 +58,6 @@ class CurrentWorkoutViewModel(
             }
             .launchIn(viewModelScope)
 
-        // load gyms
         gymRepository.getAllGyms()
             .onEach { gyms ->
                 _uiState.value = _uiState.value.copy(gyms = gyms)
@@ -74,14 +71,12 @@ class CurrentWorkoutViewModel(
      * Updates the selected gym based on the current workout's locationId
      */
     private fun updateSelectedGymFromWorkout() {
-        val currentState = _uiState.value
-        val workout = currentState.currentWorkout
-        val gyms = currentState.gyms
-
-        if (workout != null && workout.locationId > 0 && gyms.isNotEmpty()) {
-            val gym = gyms.find { it.id == workout.locationId }
-            if (gym != null && currentState.selectedGym?.id != gym.id) {
-                _uiState.value = currentState.copy(selectedGym = gym)
+        val workout = _uiState.value.currentWorkout
+        val gyms = _uiState.value.gyms
+        if (workout != null && workout.gymId > 0 && gyms.isNotEmpty()) {
+            val gym = gyms.find { it.id == workout.gymId }
+            if (gym != null && _uiState.value.selectedGym?.id != gym.id) {
+                _uiState.value = _uiState.value.copy(selectedGym = gym)
             }
         }
     }
@@ -90,36 +85,26 @@ class CurrentWorkoutViewModel(
      * Validates the current workout state and updates the UI state validation
      */
     private fun validateWorkout() {
-        val currentState = _uiState.value
+        val state = _uiState.value
         val newValidationState = when {
-            currentState.selectedGym == null ->
-                WorkoutValidationState.NoGymSelected
-
-            currentState.setGroups.isEmpty() ->
-                WorkoutValidationState.NoExercises
-
-            currentState.setGroups.any { group ->
+            state.selectedGym == null -> WorkoutValidationState.NoGymSelected
+            state.setGroups.isEmpty() -> WorkoutValidationState.NoExercises
+            state.setGroups.any { group ->
                 group.entries.isEmpty() || group.entries.all { entry ->
                     entry.weight.isBlank() || entry.reps.isBlank()
                 }
-            } ->
-                WorkoutValidationState.NoExercises
-
-            !currentState.areAllSetsCompleted() ->
-                WorkoutValidationState.UncompletedSets
-
-            else ->
-                WorkoutValidationState.Valid
+            } -> WorkoutValidationState.NoExercises
+            !state.areAllSetsCompleted() -> WorkoutValidationState.UncompletedSets
+            else -> WorkoutValidationState.Valid
         }
-
-        if (currentState.validationState != newValidationState) {
-            _uiState.value = currentState.copy(validationState = newValidationState)
+        if (state.validationState != newValidationState) {
+            _uiState.value = state.copy(validationState = newValidationState)
         }
     }
 
+    // Select a gym by its ID
     fun selectGym(gymId: Int) = viewModelScope.launch {
-        val gym = gymRepository.getGymById(gymId)
-        if (gym != null) {
+        gymRepository.getGymById(gymId)?.let { gym ->
             _uiState.value = _uiState.value.copy(selectedGym = gym)
 
             // Update workout's gym if a workout exists
@@ -135,7 +120,6 @@ class CurrentWorkoutViewModel(
         val actualGymId = gymId.takeIf { it > 0 }
             ?: uiState.value.selectedGym?.id
             ?: 0
-
         workoutRepository.startNewWorkout(actualGymId)
     }
 
@@ -158,24 +142,23 @@ class CurrentWorkoutViewModel(
     fun addExerciseById(exerciseId: Long) = viewModelScope.launch {
         val selectedExercise = exerciseRepository.getExerciseById(exerciseId) ?: return@launch
         val workout = _uiState.value.currentWorkout ?: return@launch
-
         val newSetGroup = SetGroup(
-            setGroupId    = 0,
-            workoutId     = workout.id,
-            exerciseId    = exerciseId.toInt(),
-            name          = selectedExercise.name,
-            weightUnit    = WeightUnit.KG,
-            exerciseName  = selectedExercise.name,
-            entries       = listOf(SetEntry(weight = "", reps = ""))
+            setGroupId = 0,
+            workoutId = workout.id,
+            exerciseId = exerciseId.toInt(),
+            name = selectedExercise.name,
+            weightUnit = WeightUnit.KG,
+            exerciseName = selectedExercise.name,
+            entries = listOf(SetEntry(weight = "", reps = ""))
         )
-
         workoutRepository.addSetGroupToWorkout(newSetGroup)
     }
 
-    // remove an exercise SetGroup
+    // add a setGroup by its name
     fun removeExercise(exerciseIndex: Int) = viewModelScope.launch {
-        val setGroup = _uiState.value.setGroups.getOrNull(exerciseIndex) ?: return@launch
-        workoutRepository.removeExercise(setGroup)
+        _uiState.value.setGroups.getOrNull(exerciseIndex)?.let {
+            workoutRepository.removeExercise(it)
+        }
     }
 
     // add a new set to a specific exercise
@@ -200,28 +183,15 @@ class CurrentWorkoutViewModel(
 
     // Update one set's completion status and persist to database
     fun toggleSetCompletion(exerciseIndex: Int, setIndex: Int, completed: Boolean) = viewModelScope.launch {
-        val currentState = _uiState.value
-
-        // First update the UI state immediately for responsiveness
-        val updatedSetGroups = currentState.setGroups.mapIndexed { sgIndex, group ->
+        val updatedSetGroups = _uiState.value.setGroups.mapIndexed { sgIndex, group ->
             if (sgIndex == exerciseIndex) {
-                val updatedEntries = group.entries.mapIndexed { entryIndex, entry ->
-                    if (entryIndex == setIndex) {
-                        entry.copy(completed = completed)
-                    } else {
-                        entry
-                    }
-                }
-                group.copy(entries = updatedEntries)
-            } else {
-                group
-            }
+                group.copy(entries = group.entries.mapIndexed { entryIndex, entry ->
+                    if (entryIndex == setIndex) entry.copy(completed = completed) else entry
+                })
+            } else group
         }
-
-        _uiState.value = currentState.copy(setGroups = updatedSetGroups)
-
+        _uiState.value = _uiState.value.copy(setGroups = updatedSetGroups)
         workoutRepository.updateSetCompletion(exerciseIndex, setIndex, completed)
-
         validateWorkout()
     }
 
