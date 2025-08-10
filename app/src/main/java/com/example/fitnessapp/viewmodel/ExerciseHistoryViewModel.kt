@@ -22,16 +22,12 @@ class ExerciseHistoryViewModel(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private val exerciseId: Long = savedStateHandle["exerciseId"] ?: error("No exerciseId in nav args")
-
-    private val formatter = DateTimeFormatter
-        .ofPattern("dd MMM yyyy, HH:mm")
-        .withZone(ZoneId.systemDefault())
+    private val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm").withZone(ZoneId.systemDefault())
 
     val uiState: StateFlow<ExerciseHistoryUIState> =
         exerciseRepository.getExerciseActivityById(exerciseId, excludeCurrentWorkout = true)
             .map { setGroups ->
                 val exerciseName = exerciseRepository.getExerciseNameById(exerciseId)
-
                 val timestamps = mutableListOf<Double>()
                 val volumeSeries = mutableListOf<Double>()
                 val oneRepMaxSeries = mutableListOf<Double>()
@@ -54,13 +50,11 @@ class ExerciseHistoryViewModel(
 
                     timestamps.add(workoutTime.toDouble())
 
-                    fun convertToKg(weight: String, unit: com.example.fitnessapp.data.WeightUnit): Double {
-                        val w = weight.toDoubleOrNull() ?: 0.0
-                        return when (unit) {
-                            com.example.fitnessapp.data.WeightUnit.KG, com.example.fitnessapp.data.WeightUnit.UNIT -> w
-                            com.example.fitnessapp.data.WeightUnit.LB -> w * 0.453592
+                    fun convertToKg(weight: String, unit: com.example.fitnessapp.data.WeightUnit): Double =
+                        when (unit) {
+                            com.example.fitnessapp.data.WeightUnit.KG, com.example.fitnessapp.data.WeightUnit.UNIT -> weight.toDoubleOrNull() ?: 0.0
+                            com.example.fitnessapp.data.WeightUnit.LB -> (weight.toDoubleOrNull() ?: 0.0) * 0.453592
                         }
-                    }
 
                     val volume = setGroup.entries.sumOf { entry ->
                         val weightKg = convertToKg(entry.weight, setGroup.weightUnit)
@@ -76,7 +70,6 @@ class ExerciseHistoryViewModel(
                     } ?: 0.0
                     oneRepMaxSeries.add(oneRepMax)
 
-                    // For display, show both units if conversion was made
                     val displaySets = setGroup.entries.map { entry ->
                         val weightKg = convertToKg(entry.weight, setGroup.weightUnit)
                         when (setGroup.weightUnit) {

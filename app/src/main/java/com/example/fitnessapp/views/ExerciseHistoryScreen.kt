@@ -2,10 +2,8 @@ package com.example.fitnessapp.views
 
 //import kotlin.time.Duration
 import android.content.res.Configuration
-import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,9 +11,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -50,12 +47,10 @@ import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberEnd
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
-import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
 import com.patrykandpatrick.vico.compose.common.ProvideVicoTheme
-import com.patrykandpatrick.vico.compose.common.component.rememberLineComponent
 import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
 import com.patrykandpatrick.vico.compose.common.component.shapeComponent
 import com.patrykandpatrick.vico.compose.common.fill
@@ -68,9 +63,7 @@ import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianLayerRangeProvider
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
-import com.patrykandpatrick.vico.core.cartesian.data.columnSeries
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
-import com.patrykandpatrick.vico.core.cartesian.layer.ColumnCartesianLayer
 import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
 import com.patrykandpatrick.vico.core.common.LegendItem
 import com.patrykandpatrick.vico.core.common.data.ExtraStore
@@ -89,7 +82,6 @@ fun ExerciseHistoryScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
     ExerciseHistoryScreenContent(
         uiState = uiState,
         onBack  = { navController.popBackStack() },
@@ -107,10 +99,7 @@ fun ExerciseHistoryScreenContent(
 
     LaunchedEffect(uiState.historyItems) {
         if (uiState.historyItems.isNotEmpty()) {
-            listState.scrollToItem(
-                index = uiState.historyItems.size - 1,
-                scrollOffset = 0
-            )
+            listState.scrollToItem(uiState.historyItems.size - 1)
         }
     }
 
@@ -124,7 +113,6 @@ fun ExerciseHistoryScreenContent(
                 .padding(horizontal = 16.dp)
         ) {
             Spacer(Modifier.height(16.dp))
-
             ExerciseHistoryPlot(
                 timestamps = uiState.xValues,
                 volumeValues = uiState.volumeSeries,
@@ -133,9 +121,7 @@ fun ExerciseHistoryScreenContent(
                     .fillMaxWidth()
                     .height(200.dp)
             )
-
             Spacer(Modifier.height(16.dp))
-
             LazyColumn(
                 state = listState,
                 modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -150,11 +136,9 @@ fun ExerciseHistoryScreenContent(
                     )
                 }
             }
-
         }
     }
 }
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -320,8 +304,7 @@ fun HistoricalExerciseCard(
     isInProgress: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    // Parse weights like "225 lbs (102.1 kg)" or "60 kg"
-    val parsedSets: List<Triple<Float, Int, String>> = sets.mapNotNull { (w, r) ->
+    val parsedSets = sets.mapNotNull { (w, r) ->
         val regex = Regex("""([\d.]+)\s*(kg|lbs|units)(?:\s*\(([\d.]+)\s*kg\))?""")
         val match = regex.find(w)
         val originalWeight = match?.groups?.get(1)?.value
@@ -339,10 +322,7 @@ fun HistoricalExerciseCard(
         } else null
     }
 
-    val highest1RM = parsedSets
-        .maxOfOrNull { (w, reps, _) -> w * (1 + 0.0333f * reps) }
-        ?: 0f
-
+    val highest1RM = parsedSets.maxOfOrNull { (w, reps, _) -> w * (1 + 0.0333f * reps) } ?: 0f
     val totalVolume = parsedSets.sumOf { (w, reps, _) -> (w * reps).toInt() }
 
     Surface(
@@ -375,15 +355,14 @@ fun HistoricalExerciseCard(
                     MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(4.dp))
-
-            parsedSets.forEachIndexed { index, (weightKg, reps, displayUnit) ->
-                val volume = (weightKg * reps).toInt()
-                val oneRM  = weightKg * (1 + 0.0333f * reps)
+            parsedSets.forEachIndexed { index, (_, reps, displayUnit) ->
+                val volume = parsedSets[index].first * reps
+                val oneRM  = parsedSets[index].first * (1 + 0.0333f * reps)
                 HistoricalSetRow(
                     setNumber = index + 1,
                     reps      = reps,
                     weightDisplay = displayUnit,
-                    volume    = volume,
+                    volume    = volume.toInt(),
                     oneRepMax = oneRM,
                     isMax     = oneRM == highest1RM
                 )
