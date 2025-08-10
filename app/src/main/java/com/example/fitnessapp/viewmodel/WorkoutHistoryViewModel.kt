@@ -8,11 +8,11 @@ import androidx.lifecycle.viewModelScope
 import com.example.fitnessapp.data.HealthConnectAvailability
 import com.example.fitnessapp.data.HealthConnectManager
 import com.example.fitnessapp.data.WeightUnit
-import com.example.fitnessapp.data.room.WorkoutDao
-import com.example.fitnessapp.data.room.toDomain
+import com.example.fitnessapp.data.repositories.WorkoutRepository
 import com.example.fitnessapp.views.HealthConnectSession
 import com.example.fitnessapp.views.WorkoutHistoryItem
 import com.example.fitnessapp.views.WorkoutHistoryUIState
+import com.example.fitnessapp.data.room.SetGroupWithEntries
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,7 +23,7 @@ import java.util.Date
 import java.util.Locale
 
 class WorkoutHistoryViewModel(
-    private val workoutDao: WorkoutDao,
+    private val workoutRepository: WorkoutRepository,
     private val healthConnectManager: HealthConnectManager
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(WorkoutHistoryUIState())
@@ -50,7 +50,7 @@ class WorkoutHistoryViewModel(
                     it.metadata.clientRecordId
                 } ?: emptyMap()
 
-                val workouts = workoutDao.getWorkouts().first()
+                val workouts = workoutRepository.getAllWorkouts().first()
                     .filter { !it.isInProgress }
                     .filter { it.endTime > 0 }
 
@@ -61,7 +61,7 @@ class WorkoutHistoryViewModel(
 
                     if (existsInHealthConnect && !workout.isAndroidHealthConnectSynced) {
                         // Update the flag if it exists in Health Connect but isn't marked as synced
-                        workoutDao.updateHealthConnectSynced(workout.workoutId, true)
+                        workoutRepository.updateHealthConnectSynced(workout.workoutId, true)
                         Log.d(TAG, "Updated sync status for workout ${workout.workoutId}")
                     }
                 }
@@ -70,34 +70,45 @@ class WorkoutHistoryViewModel(
                 workouts.forEach { workout ->
                     val workoutId = workout.workoutId.toString()
                     if (!healthConnectSessions.containsKey(workoutId)) {
-                        val workoutWithGroups = workoutDao.getWorkoutWithSetGroupsAndEntries(workout.workoutId).first()
+                        val workoutWithGroups = workoutRepository.getWorkoutWithSetGroupsAndEntries(workout.workoutId).first()
                         val result = healthConnectManager.writeWorkoutToHealthConnect(workoutWithGroups)
                         if (result.isSuccess) {
-                            workoutDao.updateHealthConnectSynced(workout.workoutId, true)
+                            workoutRepository.updateHealthConnectSynced(workout.workoutId, true)
                         }
                     }
                 }
 
                 // Continue with existing workout history loading
                 val historyItems = workouts.map { workout ->
-                    val workoutWithGroups = workoutDao.getWorkoutWithSetGroupsAndEntries(workout.workoutId).first()
-                    val setGroups = workoutWithGroups.setGroups.map { setGroupWithEntries ->
-                        // Convert weights based on unit type
-                        val convertedEntries = setGroupWithEntries.entries.map { entry ->
-                            val weight = entry.weight?.toString() ?: ""
-                            val convertedWeight = when (setGroupWithEntries.group.weightUnit) {
-                                WeightUnit.KG -> weight
+                    val workoutWithGroups = workoutRepository.getWorkoutWithSetGroupsAndEntries(workout.workoutId).first()
+                    val setGroups = workoutWithGroups.setGroups.map { setGroupWithEntries: SetGroupWithEntries ->
+                        // Convert weights based on unit type and show both units if needed
+                        val convertedEntries = setGroupWithEntries.entries.map { entry: com.example.fitnessapp.data.room.SetEntryEntity ->
+                            val originalWeight = entry.weight?.toString() ?: ""
+                            val displayWeight: String = when (setGroupWithEntries.group.weightUnit) {
+                                WeightUnit.KG -> "$originalWeight kg"
                                 WeightUnit.LB -> {
-                                    // Convert lbs to kg (1 lb = 0.453592 kg)
-                                    weight.toFloatOrNull()?.let { it * 0.453592f }?.toString() ?: weight
+                                    val kg = originalWeight.toFloatOrNull()?.let { it * 0.453592f }
+                                    if (kg != null) "$originalWeight lbs (${kg.toInt()} kg)" else "$originalWeight lbs"
                                 }
-                                WeightUnit.UNIT -> weight // Treat units as equivalent to kg
+                                WeightUnit.UNIT -> "$originalWeight units (${originalWeight} kg)"
                             }
-                            entry.copy(weight = convertedWeight.toFloatOrNull())
+                            com.example.fitnessapp.data.SetEntry(
+                                weight = displayWeight,
+                                reps = entry.reps?.toString() ?: "",
+                                completed = entry.completed
+                            )
                         }
-                        setGroupWithEntries.copy(entries = convertedEntries).toDomain()
+                        com.example.fitnessapp.data.SetGroup(
+                            setGroupId = setGroupWithEntries.group.setGroupId,
+                            workoutId = setGroupWithEntries.group.workoutId,
+                            exerciseId = setGroupWithEntries.group.exerciseId,
+                            name = setGroupWithEntries.exercise?.name ?: "[Unknown Exercise]",
+                            weightUnit = setGroupWithEntries.group.weightUnit,
+                            exerciseName = setGroupWithEntries.exercise?.name ?: "[Unknown Exercise]",
+                            entries = convertedEntries
+                        )
                     }
-
                     WorkoutHistoryItem(
                         id = workout.workoutId.toLong(),
                         date = dateFormat.format(Date(workout.startTime)),
@@ -178,13 +189,13 @@ class WorkoutHistoryViewModel(
     fun syncHistoricalWorkoutsToHealthConnect() {
         viewModelScope.launch {
             try {
-                val workouts = workoutDao.getWorkouts().first()
+                val workouts = workoutRepository.getAllWorkouts().first()
 
                 for (workout in workouts) {
                     // Skip workouts in progress
                     if (workout.isInProgress) continue
 
-                    val workoutWithGroups = workoutDao.getWorkoutWithSetGroupsAndEntries(workout.workoutId).first()
+                    val workoutWithGroups = workoutRepository.getWorkoutWithSetGroupsAndEntries(workout.workoutId).first()
 
                     // Write to Health Connect
                     healthConnectManager.writeWorkoutToHealthConnect(workoutWithGroups)

@@ -310,9 +310,7 @@ private fun ExerciseDetailCard(
             // Display each set entry for this exercise
             val allEntries = groups.flatMap { it.entries }
             allEntries.forEachIndexed { index, entry ->
-                val weight = entry.weight.toFloatOrNull() ?: 0f
                 val reps = entry.reps.toIntOrNull() ?: 0
-
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -324,7 +322,7 @@ private fun ExerciseDetailCard(
                         style = MaterialTheme.typography.bodySmall
                     )
                     Text(
-                        text = stringResource(R.string.weight_reps, weight.toInt(), reps),
+                        text = "${entry.weight} x $reps",
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Medium
                     )

@@ -1,20 +1,23 @@
 package com.example.fitnessapp.data.repositories
 
+import com.example.fitnessapp.data.SetGroup
+import com.example.fitnessapp.data.WeightUnit
+import com.example.fitnessapp.data.Workout
 import com.example.fitnessapp.data.room.ExerciseDao
 import com.example.fitnessapp.data.room.SetEntryDao
 import com.example.fitnessapp.data.room.SetEntryEntity
-import com.example.fitnessapp.data.SetGroup
-import com.example.fitnessapp.data.WeightUnit
 import com.example.fitnessapp.data.room.SetGroupDao
 import com.example.fitnessapp.data.room.SetGroupEntity
-import com.example.fitnessapp.data.Workout
 import com.example.fitnessapp.data.room.WorkoutDao
 import com.example.fitnessapp.data.room.WorkoutEntity
 import com.example.fitnessapp.data.room.toDomain
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -27,7 +30,7 @@ class CurrentWorkoutRepositoryImpl(
     private val setGroupDao: SetGroupDao,
     private val setEntryDao: SetEntryDao,
     private val dispatcher: CoroutineDispatcher,
-    private val scope: CoroutineScope
+    scope: CoroutineScope
 ) : CurrentWorkoutRepository {
 
     private val _currentWorkout = MutableStateFlow<WorkoutEntity?>(null)
@@ -131,11 +134,11 @@ class CurrentWorkoutRepositoryImpl(
             val nextSetIndex = (targetSetGroup.entries.maxOfOrNull { it.setIndex } ?: -1) + 1
             setEntryDao.insertSetEntry(
                 SetEntryEntity(
-                    setEntryId = 0, // auto generated
+                    setEntryId = 0,
                     setGroupId = targetSetGroup.group.setGroupId,
                     setIndex = nextSetIndex,
-                    weight = null, // Use null instead of 0f to represent empty string
-                    reps = null   // Use null instead of 0 to represent empty string
+                    weight = null,
+                    reps = null
                 )
             )
         }
@@ -176,7 +179,6 @@ class CurrentWorkoutRepositoryImpl(
             val targetSetGroup = workoutWithGroups.setGroups.getOrNull(exerciseIndex) ?: return@withContext
             val targetSetEntry = targetSetGroup.entries.find { it.setIndex == setIndex } ?: return@withContext
 
-            // Convert empty string to null
             val repsValue = if (reps.isEmpty()) null else reps.toIntOrNull() ?: 0
             setEntryDao.updateSetEntry(targetSetEntry.copy(reps = repsValue))
         }

@@ -77,15 +77,14 @@ val appModule = module {
     single<ExerciseRepository> {
         ExerciseRepositoryImpl(
             exerciseDao = get(),
-            setGroupDao = get(),
-            workoutDao  = get()
+            setGroupDao = get()
         )
     }
 
     // view models
     viewModel { ExerciseListSelectionViewModel(exerciseRepository = get()) }
     viewModel { CurrentWorkoutViewModel(workoutRepository = get(), gymRepository = get(), exerciseRepository = get()) }
-    viewModel { WorkoutHistoryViewModel(workoutDao = get(), healthConnectManager = get()) }
+    viewModel { WorkoutHistoryViewModel(healthConnectManager = get(), workoutRepository = get()) }
     viewModel { ExerciseHistoryViewModel(exerciseRepository = get(), savedStateHandle = get()) }
     viewModel { AppSettingsViewModel(healthConnectManager = get()) }
 }

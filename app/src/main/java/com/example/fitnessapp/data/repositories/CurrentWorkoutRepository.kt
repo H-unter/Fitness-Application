@@ -6,8 +6,6 @@ import com.example.fitnessapp.data.room.WorkoutEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
-// Current workout is a list of exercises
-
 interface CurrentWorkoutRepository {
     val currentWorkout: StateFlow<WorkoutEntity?>
 
