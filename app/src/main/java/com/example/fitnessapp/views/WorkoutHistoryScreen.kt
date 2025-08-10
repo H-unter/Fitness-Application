@@ -17,13 +17,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.outlined.CloudOff
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -42,7 +41,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import com.example.fitnessapp.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -50,6 +48,7 @@ import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.example.fitnessapp.R
 import com.example.fitnessapp.data.HealthConnectManager
 import com.example.fitnessapp.data.SetEntry
 import com.example.fitnessapp.data.SetGroup
@@ -69,12 +68,8 @@ fun WorkoutHistoryScreen(
     overridePermissionsGranted: Boolean? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
     val effectivePermissionsGranted = overridePermissionsGranted ?: uiState.permissionsGranted
-
-    val requestPermissions = rememberLauncherForActivityResult(
-        viewModel.requestPermissionActivityContract
-    ) { granted ->
+    val requestPermissions = rememberLauncherForActivityResult(viewModel.requestPermissionActivityContract) { granted ->
         if (granted.containsAll(HealthConnectManager.PERMISSIONS)) {
             Log.d("WorkoutHistory", "Permissions successfully granted")
             viewModel.onPermissionsGranted()
@@ -88,24 +83,17 @@ fun WorkoutHistoryScreen(
         Log.d("WorkoutHistory", "Local permissions state changed to: ${uiState.permissionsGranted}")
         onPermissionsChecked(uiState.permissionsGranted)
     }
+    LaunchedEffect(navController.currentBackStackEntry) { viewModel.refreshPermissionsState() }
+    LaunchedEffect(Unit) { viewModel.checkPermissionsOnly() }
 
     LaunchedEffect(navController.currentBackStackEntry) {
-        viewModel.refreshPermissionsState()
-    }
-
-    LaunchedEffect(Unit) {
-        viewModel.checkPermissionsOnly()
+        viewModel.loadWorkoutHistory()
     }
 
     WorkoutHistoryScreenContent(
         uiState = uiState.copy(permissionsGranted = effectivePermissionsGranted),
         navController = navController,
-        onRequestPermissions = {
-            requestPermissions.launch(HealthConnectManager.PERMISSIONS)
-        },
-        onViewHealthConnectData = {
-            viewModel.readAllHealthConnectData()
-        },
+        onRequestPermissions = { requestPermissions.launch(HealthConnectManager.PERMISSIONS) },
         viewModel = viewModel
     )
 }
@@ -116,31 +104,18 @@ fun WorkoutHistoryScreenContent(
     uiState: WorkoutHistoryUIState,
     navController: NavHostController,
     onRequestPermissions: () -> Unit = {},
-    onViewHealthConnectData: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: WorkoutHistoryViewModel? = null
 ) {
-    var showHealthConnectStatus by remember { mutableStateOf(false) }
-
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Column {
-                        Text(stringResource(R.string.workout_history_title))
-                    }
-                },
+                title = { Column { Text(stringResource(R.string.workout_history_title)) } },
                 navigationIcon = {
-                    // Button to manually request permissions and sync
                     IconButton(
                         onClick = {
-                            if (uiState.permissionsGranted) {
-                                // If already granted, sync workouts
-                                viewModel?.syncHistoricalWorkoutsToHealthConnect()
-                            } else {
-                                // If not granted, request permissions
-                                onRequestPermissions()
-                            }
+                            if (uiState.permissionsGranted) viewModel?.syncHistoricalWorkoutsToHealthConnect()
+                            else onRequestPermissions()
                         }
                     ) {
                         Icon(
@@ -172,11 +147,9 @@ fun WorkoutHistoryScreenContent(
                     onDismiss = { viewModel?.dismissHealthConnectDialog() }
                 )
             }
-
             if (uiState.workouts.isEmpty()) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize(),
+                    modifier = Modifier.fillMaxSize(),
                     contentAlignment = androidx.compose.ui.Alignment.Center
                 ) {
                     Text(
@@ -208,14 +181,11 @@ private fun WorkoutHistoryItem(
     isInHealthConnect: Boolean = false
 ) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         tonalElevation = 2.dp
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -232,14 +202,8 @@ private fun WorkoutHistoryItem(
                             modifier = Modifier.padding(end = 8.dp)
                         )
                     }
-
-                    Text(
-                        text = workout.date,
-                        style = MaterialTheme.typography.titleMedium
-                    )
+                    Text(text = workout.date, style = MaterialTheme.typography.titleMedium)
                 }
-
-                // Health Connect sync status icon - use CloudDone/CloudOff
                 Icon(
                     imageVector = if (isInHealthConnect) Icons.Default.CloudDone else Icons.Default.CloudOff,
                     contentDescription = if (isInHealthConnect)
@@ -253,27 +217,19 @@ private fun WorkoutHistoryItem(
                     modifier = Modifier.size(20.dp)
                 )
             }
-
             Spacer(modifier = Modifier.height(4.dp))
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = workout.startTime,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-
+                Text(text = workout.startTime, style = MaterialTheme.typography.bodyMedium)
                 Text(
                     text = stringResource(R.string.duration_with_value, workout.duration),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium
                 )
             }
-
             Spacer(modifier = Modifier.height(12.dp))
-
             workout.setGroups.groupBy { it.exerciseName }.forEach { (exerciseName, groups) ->
                 ExerciseDetailCard(exerciseName, groups)
                 Spacer(modifier = Modifier.height(8.dp))
@@ -304,10 +260,7 @@ private fun ExerciseDetailCard(
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold
             )
-
             Spacer(modifier = Modifier.height(4.dp))
-
-            // Display each set entry for this exercise
             val allEntries = groups.flatMap { it.entries }
             allEntries.forEachIndexed { index, entry ->
                 val reps = entry.reps.toIntOrNull() ?: 0
@@ -328,14 +281,11 @@ private fun ExerciseDetailCard(
                     )
                 }
             }
-
-            // Calculate and display total volume
             val totalVolume = allEntries.sumOf {
                 val weight = it.weight.toFloatOrNull() ?: 0f
                 val reps = it.reps.toIntOrNull() ?: 0
                 (weight * reps).toInt()
             }
-
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = stringResource(R.string.total_volume_kg, totalVolume),
@@ -352,7 +302,7 @@ fun HealthConnectDataDialog(
     sessions: List<HealthConnectSession>,
     onDismiss: () -> Unit
 ) {
-    androidx.compose.material3.AlertDialog(
+    AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
@@ -370,17 +320,14 @@ fun HealthConnectDataDialog(
                     text = stringResource(R.string.found_sessions, sessions.size),
                     style = MaterialTheme.typography.bodyMedium
                 )
-
                 Spacer(modifier = Modifier.height(8.dp))
-
                 if (sessions.isEmpty()) {
                     Text(
                         text = stringResource(R.string.no_sessions_found),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 } else {
-                    // Use LazyColumn for potentially large lists
-                    androidx.compose.foundation.lazy.LazyColumn(
+                    LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(300.dp)
@@ -397,9 +344,7 @@ fun HealthConnectDataDialog(
             }
         },
         confirmButton = {
-            androidx.compose.material3.Button(
-                onClick = onDismiss
-            ) {
+            Button(onClick = onDismiss) {
                 Text(stringResource(R.string.close))
             }
         }
@@ -426,35 +371,27 @@ fun HealthConnectSessionItem(session: HealthConnectSession) {
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
-
         Spacer(modifier = Modifier.height(4.dp))
-
-        // Display exercise type
         val exerciseTypeStr = when (session.exerciseType) {
-            androidx.health.connect.client.records.ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING -> stringResource(R.string.strength_training)
+            ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING -> stringResource(R.string.strength_training)
             else -> stringResource(R.string.other_exercise_type, session.exerciseType)
         }
-
         Text(
             text = stringResource(R.string.type_with_value, exerciseTypeStr),
             style = MaterialTheme.typography.bodyMedium
         )
-
         Text(
             text = stringResource(R.string.duration_colon, if (durationHours > 0) "${durationHours}h " else "", durationMinutes % 60),
             style = MaterialTheme.typography.bodyMedium
         )
-
         Text(
             text = stringResource(R.string.start_time, startTimeFormatted),
             style = MaterialTheme.typography.bodySmall
         )
-
         Text(
             text = stringResource(R.string.end_time, endTimeFormatted),
             style = MaterialTheme.typography.bodySmall
         )
-
         if (session.segmentCount > 0) {
             Spacer(modifier = Modifier.height(4.dp))
             Text(
@@ -463,7 +400,6 @@ fun HealthConnectSessionItem(session: HealthConnectSession) {
                 fontWeight = FontWeight.Medium
             )
         }
-
         session.clientRecordId?.let { clientId ->
             Text(
                 text = stringResource(R.string.id_with_value, clientId),
@@ -474,7 +410,7 @@ fun HealthConnectSessionItem(session: HealthConnectSession) {
     }
 }
 
-
+// --- Previews ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 @Preview(name = "Permissions Granted", showBackground = true)
@@ -512,8 +448,7 @@ private fun WorkoutHistoryScreenPreview_PermissionsGranted() {
     FitnessappTheme {
         WorkoutHistoryScreenContent(
             uiState = sampleState,
-            navController = rememberNavController(),
-            onViewHealthConnectData = {} // Empty function for preview
+            navController = rememberNavController()
         )
     }
 }
@@ -530,18 +465,13 @@ private fun WorkoutHistoryScreenPreview_PermissionsNotGranted() {
     FitnessappTheme {
         WorkoutHistoryScreenContent(
             uiState = sampleState,
-            navController = rememberNavController(),
-            onViewHealthConnectData = {} // Empty function for preview
-        )
+            navController = rememberNavController()
+            )
     }
 }
 
-// Add preview for HealthConnectDataDialog
 @Composable
-@Preview(
-    name = "Health Connect Dialog Preview",
-    showBackground = true
-)
+@Preview(name = "Health Connect Dialog Preview", showBackground = true)
 fun HealthConnectDataDialogPreview() {
     val sampleSessions = listOf(
         HealthConnectSession(
@@ -565,7 +495,6 @@ fun HealthConnectDataDialogPreview() {
             clientRecordId = "workout_124"
         )
     )
-
     FitnessappTheme {
         Surface {
             HealthConnectDataDialog(
